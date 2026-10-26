@@ -1,0 +1,1514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Firebase Web SDK (Compat) -->
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="firebase-config.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Investor Portal — Funds &amp; PSX</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="stylesheet" href="theme.css?v=441439978208">
+<style>
+:root{
+  --bg:#0b0e1a; --surface:#151a2e; --surface2:#0f1424; --border:#262b47; --border2:#2a2f4a;
+  --text:#e8e8f0; --muted:#94a3b8; --input-bg:#0b0e1a; --chip-bg:#1e223a; --modal-overlay:rgba(0,0,0,.65);
+}
+:root[data-theme="light"]{
+  --bg:#f3f4f8; --surface:#ffffff; --surface2:#f1f2f7; --border:#e2e4ee; --border2:#d7dae6;
+  --text:#1a1e2e; --muted:#5b6178; --input-bg:#ffffff; --chip-bg:#eef0f7; --modal-overlay:rgba(15,17,30,.45);
+}
+*{box-sizing:border-box}
+body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text);margin:0;padding:18px;max-width:1500px;margin:0 auto}
+h1{font-size:22px;margin:0}
+.sub{color:var(--muted);font-size:12.5px;margin:4px 0 14px}
+.topbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+button,select,input{font-family:inherit;font-size:13px}
+button{background:#5b21b6;color:#fff;border:none;padding:8px 14px;border-radius:8px;cursor:pointer}
+button:hover{background:#6d28d9}
+button:disabled{opacity:.6;cursor:wait}
+button.secondary{background:var(--chip-bg);border:1px solid var(--border2);color:var(--text)}
+button.secondary:hover{filter:brightness(0.95)}
+button.tiny{padding:4px 9px;font-size:11.5px;border-radius:6px}
+button.tab{background:var(--chip-bg);border:1px solid var(--border2);padding:6px 12px;color:var(--text)}
+button.tab.active{background:#5b21b6;border-color:#5b21b6;color:#fff}
+select{background:var(--chip-bg);color:var(--text);border:1px solid var(--border2);border-radius:8px;padding:7px 8px}
+.live-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#4ade80;margin-right:6px;animation:pulse 1.6s infinite}
+.live-dot.off{background:#64748b;animation:none}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(74,222,128,.6)}70%{box-shadow:0 0 0 8px rgba(74,222,128,0)}100%{box-shadow:0 0 0 0 rgba(74,222,128,0)}}
+
+/* Drag & drop handle */
+.drag-handle{cursor:grab;color:var(--muted);font-size:14px;padding:0 4px;user-select:none;touch-action:none}
+.drag-handle:active{cursor:grabbing}
+tr.dragging{opacity:0.4;background:var(--surface2)}
+tr.drag-over{border-top:2px solid #7c3aed}
+/* Edit modal for company */
+.edit-co-modal{display:none;position:fixed;inset:0;z-index:200;background:var(--modal-overlay);align-items:center;justify-content:center}
+.edit-co-modal.show{display:flex}
+.edit-co-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:22px;width:320px;max-width:95vw}
+
+.apptabs{display:flex;gap:8px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:0}
+.apptab{background:none;border:none;color:var(--muted);padding:10px 4px;margin-right:18px;font-size:15px;font-weight:600;border-bottom:2px solid transparent;border-radius:0}
+.apptab.active{color:var(--text);border-bottom-color:#7c3aed}
+.apptab:hover{background:none;color:var(--text)}
+.view{display:none}
+.view.active{display:block}
+
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px}
+.kpi .l{color:var(--muted);font-size:12px}
+.kpi .v{font-size:22px;font-weight:700;margin-top:4px}
+.kpi .n{color:var(--muted);font-size:11px;margin-top:2px}
+.funds{display:grid;grid-template-columns:repeat(auto-fit,minmax(520px,1fr));gap:16px}
+@media(max-width:600px){.funds{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;min-width:0}
+.fund-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.fund-title{font-weight:700;font-size:17px}
+.bench{color:var(--muted);font-size:12px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}
+@media(max-width:600px){.stats{grid-template-columns:repeat(2,1fr)}}
+.stat{background:rgba(124,58,237,.09);border-radius:8px;padding:8px 10px}
+.stat .l{color:var(--muted);font-size:11px}
+.stat .v{font-weight:700;font-size:15px;margin-top:2px}
+.pos{color:#1fa65a} .neg{color:#e5484d} .na{color:var(--muted)}
+:root[data-theme="light"] .pos{color:#15803d} :root[data-theme="light"] .neg{color:#dc2626}
+:root:not([data-theme="light"]) .pos{color:#4ade80} :root:not([data-theme="light"]) .neg{color:#f87171}
+.charts{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:8px;margin:8px 0}
+@media(max-width:800px){.charts{grid-template-columns:1fr}}
+.cbox{background:var(--surface2);border-radius:8px;padding:8px;position:relative;height:170px;overflow:hidden}
+.tblwrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:6px;min-width:560px}
+th,td{text-align:right;padding:6px 6px;border-bottom:1px solid var(--border);white-space:nowrap}
+th:first-child,td:first-child{text-align:left;white-space:normal}
+th{color:var(--muted);font-weight:600;font-size:11.5px}
+td input{width:62px;background:var(--input-bg);border:1px solid var(--border2);color:var(--text);border-radius:6px;padding:3px 5px;text-align:right;font-size:12px}
+td input.tk{width:66px;text-transform:uppercase}
+tr.market td{color:var(--muted);font-style:italic}
+tr.totals td{font-weight:700;border-top:2px solid var(--border2)}
+.badge{font-size:10px;background:#3f2d0d;color:#fbbf24;padding:1px 6px;border-radius:8px;margin-left:5px}
+.badge.buy{background:#0f2e1a;color:#4ade80}
+.badge.sell{background:#3f1414;color:#f87171}
+.err{background:#3f1414;color:#fca5a5;padding:8px;border-radius:8px;font-size:12px;margin-top:6px}
+.note{background:var(--chip-bg);color:#8b7ff0;padding:8px;border-radius:8px;font-size:12px;margin-top:6px}
+:root[data-theme="light"] .note{color:#6d28d9}
+.flash-up{animation:fup 1.6s}.flash-down{animation:fdn 1.6s}
+@keyframes fup{0%{background:rgba(74,222,128,.55)}100%{background:transparent}}
+@keyframes fdn{0%{background:rgba(248,113,113,.55)}100%{background:transparent}}
+.modal-bg{position:fixed;inset:0;background:var(--modal-overlay);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+.modal-bg.show{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;width:380px;max-width:94vw;max-height:90vh;overflow-y:auto;color:var(--text)}
+.modal h3{margin:0 0 10px}
+.modal label{display:block;font-size:12px;color:var(--muted);margin:9px 0 4px}
+.modal input,.modal select{width:100%;padding:8px;border-radius:6px;border:1px solid var(--border2);background:var(--input-bg);color:var(--text)}
+.modal-actions{display:flex;gap:8px;margin-top:16px;justify-content:flex-end}
+.icon-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:2px 5px}
+.icon-btn:hover{color:#f87171;background:none}
+.section{margin-top:22px}
+.sec-head{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.sec-title{font-weight:700;font-size:16px}
+.hist{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:900px){.hist{grid-template-columns:1fr}}
+.hbox{background:var(--surface2);border-radius:8px;padding:10px;height:280px;position:relative;overflow:hidden}
+.hstats{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 0}
+.hstats .stat{flex:1;min-width:140px}
+#news{max-height:520px;overflow-y:auto}
+.news-item{display:flex;gap:10px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:8px;font-size:13.5px;align-items:flex-start}
+.ntime{min-width:112px;color:var(--muted);font-size:12px;line-height:1.35}
+.ntime b{color:var(--text);display:block;font-size:12.5px}
+.nsrc{display:inline-block;background:var(--chip-bg);color:#7dd3fc;font-size:10.5px;padding:1px 7px;border-radius:8px;margin-bottom:3px}
+.nhead a{color:var(--text);text-decoration:none}.nhead a:hover{text-decoration:underline}
+.tag{display:inline-block;background:#312e81;color:#c7d2fe;font-size:10.5px;padding:2px 7px;border-radius:8px;margin:4px 4px 0 0;cursor:pointer}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{background:var(--chip-bg);border:1px solid var(--border2);padding:4px 10px;border-radius:14px;font-size:12px;cursor:pointer;color:var(--text)}
+.chip.active{background:#5b21b6;border-color:#5b21b6;color:#fff}
+.spin{display:inline-block;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.foot{color:var(--muted);font-size:11px;margin:24px 0 8px}
+.checkrow{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px}
+.checkrow label{display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--text);cursor:pointer}
+.settingsGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.settingsGrid label{font-size:11px;color:var(--muted);display:block;margin-bottom:3px}
+.settingsGrid input{width:100%;padding:6px;border-radius:6px;border:1px solid var(--border2);background:var(--input-bg);color:var(--text)}
+.detailrow{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:13px;color:var(--text)}
+.detailrow b{font-weight:600}
+.theme-toggle{background:var(--chip-bg);border:1px solid var(--border2);border-radius:20px;padding:6px 12px;cursor:pointer;color:var(--text);font-size:13px}
+.tickerstrip{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:16px}
+.tcard{background:var(--chip-bg);border:1px solid var(--border2);border-radius:10px;padding:8px 10px;font-size:12px}
+.tcard-head{font-weight:600;margin-bottom:2px;white-space:nowrap;display:flex;justify-content:space-between;gap:8px}
+.tcard-price{font-size:17px;font-weight:700;margin-bottom:2px}
+.tcard-sub{font-size:10.5px;color:var(--muted);margin-bottom:1px;white-space:nowrap}
+.tcard-sub b{color:var(--text);font-weight:600}
+.tcard-rows{display:flex;flex-direction:column;gap:2px;color:var(--muted);font-size:10.5px;margin-top:4px;padding-top:4px;border-top:1px solid var(--border2)}
+.tcard-rows span{display:flex;justify-content:space-between;gap:6px}
+</style>
+</head>
+<body>
+
+<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
+  <div>
+    <h1>📊 Investor Portal</h1>
+    <div class="sub"><span class="live-dot" id="liveDot"></span><span id="statusLine">Loading…</span></div>
+  </div>
+  <button class="secondary" onclick="signOut()">Sign out</button>
+  <button class="secondary" id="syncBtn" onclick="syncToFirebase()" title="Deploy latest code to live Firebase URL">🔄 Sync to Firebase</button>
+  <button class="theme-toggle" id="themeBtn" onclick="toggleTheme()">🌙 Dark</button>
+</div>
+
+<div class="apptabs">
+  <button class="apptab active" id="apptab-funds" onclick="switchApp('funds')">Mutual Funds</button>
+  <button class="apptab" id="apptab-psx" onclick="switchApp('psx')">PSX Portfolio</button>
+</div>
+
+<div id="tickerStrip" class="tickerstrip"></div>
+
+<!-- ============================= MUTUAL FUNDS VIEW ============================= -->
+<div class="view active" id="view-funds">
+  <div class="topbar">
+    <button onclick="openFundModal()">＋ New Fund</button>
+    <button class="secondary" id="refreshBtn" onclick="refreshAll()">🔄 Refresh Live PSX</button>
+    <select id="autoSel" onchange="setAuto(this.value)" title="How often the screen re-reads stored data (does NOT call PSX again)">
+      <option value="30">Screen update: 30s</option>
+      <option value="60" selected>Screen update: 1 min</option>
+      <option value="120">Screen update: 2 min</option>
+      <option value="300">Screen update: 5 min</option>
+      <option value="0">Screen update: Off</option>
+    </select>
+  </div>
+  <div class="note" style="margin-bottom:14px">Live PSX prices refresh automatically once an hour, 9:00 AM–4:00 PM PKT (market hours) — or press "Refresh Live PSX" any time. The screen-update dropdown only redraws stored data; it does not call PSX again.</div>
+
+  <div class="kpis" id="kpis"></div>
+  <div class="funds" id="funds"><p class="na">Loading funds…</p></div>
+
+  <div class="section card">
+    <div class="sec-head">
+      <div class="sec-title">📈 Earnings / Loss &amp; Investment History</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <select id="histFund" onchange="loadHistory()"><option value="">All funds</option></select>
+        <button class="tab active" id="tab-daily" onclick="setPeriod('daily')">Daily</button>
+        <button class="tab" id="tab-weekly" onclick="setPeriod('weekly')">Weekly</button>
+        <button class="tab" id="tab-monthly" onclick="setPeriod('monthly')">Monthly</button>
+        <button class="tab" id="tab-yearly" onclick="setPeriod('yearly')">Yearly</button>
+        <button class="tab" id="tab-fy" onclick="setPeriod('fy')">FY (Jul–Jun)</button>
+        <button class="tab" id="tab-since" onclick="setPeriod('since')">Since Investment</button>
+      </div>
+    </div>
+    <div class="hist">
+      <div class="hbox"><canvas id="plChart"></canvas></div>
+      <div class="hbox"><canvas id="invChart"></canvas></div>
+    </div>
+    <div class="hstats" id="hstats"></div>
+  </div>
+
+  <div class="section card">
+    <div class="sec-head">
+      <div class="sec-title">📰 Pakistan &amp; World News — market impact tags</div>
+      <button class="secondary" id="newsBtn" onclick="loadNews(true)">Refresh News</button>
+    </div>
+    <div class="chips" id="focusChips" style="margin-bottom:8px"></div>
+    <div class="chips" id="srcChips" style="margin-bottom:8px"></div>
+    <div class="chips" id="tagChips" style="margin-bottom:10px"></div>
+    <div id="news">Loading…</div>
+  </div>
+
+  <div class="foot">Fund prices &amp; index weights: Pakistan Stock Exchange Data Portal (dps.psx.com.pk). News: Geo, Jang, ARY, Express Tribune, BBC, Al Jazeera. Informational only, not investment advice.</div>
+</div>
+
+<!-- ============================= PSX DIRECT PORTFOLIO VIEW ============================= -->
+<div class="view" id="view-psx">
+  <div class="topbar">
+    <button onclick="psxOpenBuy()">＋ Buy Shares</button>
+    <button class="secondary" onclick="psxRefresh()" id="psxRefreshBtn">🔄 Refresh Live Prices</button>
+    <button class="secondary" onclick="window.location.href='/api/psx/template'">⬇️ Download Import Template (Excel/CSV)</button>
+    <button class="secondary" onclick="document.getElementById('psxFileInput').click()">📤 Upload Filled Template</button>
+    <input type="file" id="psxFileInput" accept=".csv,text/csv" style="display:none" onchange="psxUploadCsv(this.files[0])">
+    <button class="secondary" onclick="psxOpenSettings()">⚙ Commission &amp; Tax Settings</button>
+    <select id="psxAutoSel" onchange="psxSetAuto(this.value)"></select>
+    <span class="bench" id="psxCd" style="align-self:center">manual refresh</span>
+  </div>
+  <div class="note" style="margin-bottom:14px">This is your <b>separate direct PSX shareholding</b> tracker — completely independent from the Mutual Funds above. Nothing here affects your fund data, and nothing there affects this.</div>
+
+  <div class="kpis" id="psxKpis"></div>
+
+  <div class="card">
+    <div class="sec-head"><div class="sec-title">📊 Holdings — Allocation &amp; Unrealized Gain/Loss</div></div>
+    <div class="charts" id="psxCharts" style="grid-template-columns:1fr 1fr">
+      <div class="cbox" style="height:230px"><canvas id="psxPieChart"></canvas></div>
+      <div class="cbox" style="height:230px"><canvas id="psxBarChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="sec-head"><div class="sec-title">Active Holdings</div></div>
+    <div class="tblwrap"><table id="psxActiveTable">
+      <tr><th>Company</th><th>Ticker</th><th>Qty</th><th>Buy Price</th><th>Buy Date</th><th>Days Held</th><th>Live Price</th><th>Day Δ%</th><th>Invested</th><th>Current Value</th><th>Unrealized P/L</th><th></th></tr>
+    </table></div>
+    <p class="na" id="psxActiveEmpty" style="display:none">No active holdings yet — click "＋ Buy Shares" to add your first one.</p>
+    <div class="tblwrap" style="margin-top:14px">
+      <div class="bench" style="margin-bottom:4px">Totals by company (net position)</div>
+      <table id="psxActiveTotalsTable"></table>
+    </div>
+  </div>
+
+  <div class="card section">
+    <div class="sec-head">
+      <div class="sec-title">Sold (Closed) Holdings</div>
+      <button class="secondary" onclick="psxOpenHistoryModal()">＋ Add Old Trade (backfill history)</button>
+    </div>
+    <div class="tblwrap"><table id="psxSoldTable">
+      <tr><th>Company</th><th>Ticker</th><th>Qty</th><th>Buy Price</th><th>Sell Price</th><th>Buy Date</th><th>Sell Date</th><th>Days Held</th><th>Realized P/L</th><th></th></tr>
+    </table></div>
+    <p class="na" id="psxSoldEmpty" style="display:none">No sold holdings yet.</p>
+    <div class="tblwrap" style="margin-top:14px">
+      <div class="bench" style="margin-bottom:4px">Totals by company (realized)</div>
+      <table id="psxSoldTotalsTable"></table>
+    </div>
+  </div>
+
+  <div class="card section">
+    <div class="sec-head">
+      <div class="sec-title">📈 Portfolio Profit / Loss History</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="tab active" id="phtab-daily" onclick="psxSetHistPeriod('daily')">Daily</button>
+        <button class="tab" id="phtab-weekly" onclick="psxSetHistPeriod('weekly')">Weekly</button>
+        <button class="tab" id="phtab-monthly" onclick="psxSetHistPeriod('monthly')">Monthly</button>
+        <button class="tab" id="phtab-yearly" onclick="psxSetHistPeriod('yearly')">Yearly</button>
+      </div>
+    </div>
+    <div class="hist">
+      <div class="hbox"><canvas id="psxHistPl"></canvas></div>
+      <div class="hbox"><canvas id="psxHistVal"></canvas></div>
+    </div>
+    <div class="hstats" id="psxHistStats"></div>
+  </div>
+
+  <div class="card section">
+    <div class="sec-head">
+      <div class="sec-title">📊 Reports — select periods to include</div>
+    </div>
+    <div class="checkrow" id="psxReportChecks">
+      <label><input type="checkbox" value="daily" checked onchange="psxRenderReports()"> Daily</label>
+      <label><input type="checkbox" value="weekly" onchange="psxRenderReports()"> Weekly</label>
+      <label><input type="checkbox" value="monthly" checked onchange="psxRenderReports()"> Monthly</label>
+      <label><input type="checkbox" value="yearly" onchange="psxRenderReports()"> Yearly</label>
+      <label><input type="checkbox" value="fiscal_year" onchange="psxRenderReports()"> Fiscal Year (Jul–Jun)</label>
+      <label><input type="checkbox" value="since_inception" checked onchange="psxRenderReports()"> Since Inception</label>
+    </div>
+    <div id="psxReportOut"><p class="na">Sell a holding to start seeing realized-P/L reports.</p></div>
+  </div>
+
+  <div class="foot">PSX share prices: Pakistan Stock Exchange Data Portal (dps.psx.com.pk). Commission, government tax and CGT are calculated per your settings (⚙ above) — informational only, not tax advice.</div>
+</div>
+
+<!-- ========== Fund Modals ========== -->
+<div class="modal-bg" id="fundModal"><div class="modal">
+  <h3 id="fundModalTitle">New Fund</h3>
+  <input type="hidden" id="f_id">
+  <label>Fund name</label><input id="f_name" placeholder="e.g. MIF Fund">
+  <label>Benchmark for the remaining (market) %</label>
+  <select id="f_benchmark"><option>KSE-100</option><option>KMI-30</option></select>
+  <label>Your total investment in this fund (Rs.)</label><input id="f_investment" type="number" placeholder="e.g. 500000">
+  <div class="modal-actions">
+    <button class="secondary" onclick="closeModal('fundModal')">Cancel</button>
+    <button onclick="saveFund()">Save</button>
+  </div>
+</div></div>
+
+<div class="modal-bg" id="holdingModal"><div class="modal">
+  <h3>Add Company</h3>
+  <input type="hidden" id="h_fund_id">
+  <label>Company name</label><input id="h_company" placeholder="e.g. Oil &amp; Gas Development Company Limited">
+  <label>PSX ticker</label><input id="h_ticker" placeholder="e.g. OGDC">
+  <label>Weight %</label><input id="h_weight" type="number" step="0.01" placeholder="e.g. 25">
+  <div class="modal-actions">
+    <button class="secondary" onclick="closeModal('holdingModal')">Cancel</button>
+    <button onclick="addHolding()">Add</button>
+  </div>
+</div></div>
+
+<!-- ========== PSX Modals ========== -->
+<div class="modal-bg" id="psxBuyModal"><div class="modal">
+  <h3>Buy Shares</h3>
+  <label>Company name</label><input id="pb_company" placeholder="e.g. Oil & Gas Development Company Limited">
+  <label>PSX ticker</label><input id="pb_ticker" placeholder="e.g. OGDC">
+  <label>Quantity (shares)</label><input id="pb_qty" type="number" placeholder="e.g. 1000">
+  <label>Buy price per share (Rs.)</label><input id="pb_price" type="number" step="0.01" placeholder="e.g. 100">
+  <label>Buy date</label><input id="pb_date" type="date">
+  <div id="pb_preview" class="note" style="display:none"></div>
+  <div class="modal-actions">
+    <button class="secondary" onclick="closeModal('psxBuyModal')">Cancel</button>
+    <button onclick="psxSaveBuy()">Buy</button>
+  </div>
+</div></div>
+
+<div class="modal-bg" id="psxSellModal"><div class="modal">
+  <h3>Sell Shares</h3>
+  <input type="hidden" id="ps_lot_id">
+  <div id="ps_info" class="note"></div>
+  <label>Sell price per share (Rs.)</label><input id="ps_price" type="number" step="0.01">
+  <label>Sell date</label><input id="ps_date" type="date">
+  <div id="ps_preview" class="note" style="display:none"></div>
+  <div class="modal-actions">
+    <button class="secondary" onclick="closeModal('psxSellModal')">Cancel</button>
+    <button onclick="psxSaveSell()">Confirm Sale</button>
+  </div>
+</div></div>
+
+<div class="modal-bg" id="psxDetailsModal"><div class="modal">
+  <h3>Holding Details</h3>
+  <div id="pd_body"></div>
+  <div class="modal-actions"><button class="secondary" onclick="closeModal('psxDetailsModal')">Close</button></div>
+</div></div>
+
+<div class="modal-bg" id="psxEditModal"><div class="modal">
+  <h3>Edit Holding</h3>
+  <input type="hidden" id="pe_lot_id">
+  <label>Quantity (shares)</label><input id="pe_qty" type="number">
+  <label>Buy price per share (Rs.)</label><input id="pe_price" type="number" step="0.01">
+  <label>Buy date</label><input id="pe_date" type="date">
+  <label>Notes</label><input id="pe_notes" placeholder="optional">
+  <div class="modal-actions">
+    <button class="secondary" style="background:#3f1414;color:#fca5a5" onclick="psxDeleteFromEdit()">Delete entry</button>
+    <button class="secondary" onclick="closeModal('psxEditModal')">Cancel</button>
+    <button onclick="psxSaveEdit()">Save</button>
+  </div>
+</div></div>
+
+<div class="modal-bg" id="psxSettingsModal"><div class="modal">
+  <h3>Commission &amp; Tax Settings</h3>
+  <p class="sub" style="text-align:left;margin:0 0 10px">Defaults match PSX's prescribed slab — edit anytime, applies to future buys/sells.</p>
+  <div class="settingsGrid">
+    <div><label>Govt. Tax %</label><input id="ps_govt" type="number" step="0.01"></div>
+    <div><label>CGT % (on gain)</label><input id="ps_cgt" type="number" step="0.01"></div>
+    <div><label>Slab 1 max price (Rs.)</label><input id="ps_slab1max" type="number" step="0.01"></div>
+    <div><label>Slab 1 paisa/share</label><input id="ps_slab1paisa" type="number" step="0.01"></div>
+    <div><label>Slab 2 % (above slab 1)</label><input id="ps_slab2pct" type="number" step="0.01"></div>
+  </div>
+  <div class="modal-actions">
+    <button class="secondary" onclick="closeModal('psxSettingsModal')">Cancel</button>
+    <button onclick="psxSaveSettings()">Save Settings</button>
+  </div>
+</div></div>
+
+<div class="modal-bg" id="psxCashModal"><div class="modal" style="width:560px">
+  <h3>💰 Free Cash</h3>
+  <div style="font-size:12px;color:var(--muted)">Available free cash</div>
+  <div id="pc_balance" style="font-size:26px;font-weight:700;margin-bottom:8px"></div>
+  <p class="sub" style="text-align:left;margin:0 0 6px">Buying shares deducts cash automatically (price + brokerage + tax); selling adds the proceeds (after brokerage, tax and CGT). Record money you add to / take out of your broker account here. Trades added through "Import" or "Add Old Trade" don't move cash (they predate this tracker).</p>
+  <div class="settingsGrid">
+    <div><label>Amount (Rs.)</label><input id="pc_amount" type="number" step="0.01"></div>
+    <div><label>Date</label><input id="pc_date" type="date"></div>
+    <div><label>Note (optional)</label><input id="pc_notes" placeholder="e.g. bank transfer"></div>
+  </div>
+  <div class="modal-actions" style="justify-content:flex-start">
+    <button onclick="psxSaveCash('deposit')">⬆ Add Deposit</button>
+    <button class="secondary" onclick="psxSaveCash('withdrawal')">⬇ Withdraw</button>
+  </div>
+  <div class="tblwrap" style="max-height:34vh;margin-top:10px"><table id="pc_ledger" style="min-width:420px"></table></div>
+  <div class="modal-actions"><button class="secondary" onclick="closeModal('psxCashModal')">Close</button></div>
+</div></div>
+
+<div class="modal-bg" id="psxImportModal"><div class="modal" style="width:900px;max-width:96vw">
+  <h3>Review Extracted Trades</h3>
+  <div id="psxImportStatus" class="note"></div>
+  <div class="tblwrap" style="max-height:50vh"><table id="psxImportTable"></table></div>
+  <div class="modal-actions">
+    <button class="secondary" onclick="closeModal('psxImportModal')">Cancel</button>
+    <button onclick="psxConfirmImport()" id="psxImportConfirmBtn">Import Selected</button>
+  </div>
+</div></div>
+
+<div class="modal-bg" id="psxHistoryModal"><div class="modal">
+  <h3>Add Old Trade (already bought &amp; sold)</h3>
+  <p class="sub" style="text-align:left;margin:0 0 10px">For trades that happened before you started using this app — backfills your history.</p>
+  <label>Company name</label><input id="ph_company" placeholder="e.g. Oil & Gas Development Company Limited">
+  <label>PSX ticker</label><input id="ph_ticker" placeholder="e.g. OGDC">
+  <label>Quantity</label><input id="ph_qty" type="number">
+  <label>Buy price per share (Rs.)</label><input id="ph_buy_price" type="number" step="0.01">
+  <label>Buy date</label><input id="ph_buy_date" type="date">
+  <label>Sell price per share (Rs.)</label><input id="ph_sell_price" type="number" step="0.01">
+  <label>Sell date</label><input id="ph_sell_date" type="date">
+  <div class="modal-actions">
+    <button class="secondary" onclick="closeModal('psxHistoryModal')">Cancel</button>
+    <button onclick="psxSaveHistory()">Add to History</button>
+  </div>
+</div></div>
+
+<!-- Edit Company Modal -->
+<div class="edit-co-modal" id="editCoModal">
+  <div class="edit-co-box">
+    <h3 style="margin:0 0 14px;font-size:15px">✏️ Edit Company</h3>
+    <input type="hidden" id="editCoId">
+    <label>Company Name</label>
+    <input id="editCoName" placeholder="e.g. Oil & Gas Development Co." style="width:100%;margin:4px 0 10px;padding:8px;border-radius:7px;border:1px solid var(--border2);background:var(--input-bg);color:var(--text);font-size:13px">
+    <label>PSX Ticker</label>
+    <input id="editCoTicker" placeholder="e.g. OGDC" style="width:100%;margin:4px 0 14px;padding:8px;border-radius:7px;border:1px solid var(--border2);background:var(--input-bg);color:var(--text);font-size:13px;text-transform:uppercase">
+    <div style="display:flex;gap:8px">
+      <button onclick="saveEditCo()" style="flex:1">Save</button>
+      <button class="secondary" onclick="document.getElementById('editCoModal').classList.remove('show')" style="flex:1">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '/api';
+const PALETTE = ['#7c3aed','#4ade80','#f59e0b','#38bdf8','#f472b6','#a78bfa','#34d399','#fb923c','#60a5fa','#facc15','#e879f9','#2dd4bf'];
+let period = 'daily', autoSecs = 60, autoTimer = null, countdown = 0, busy = false, firstRender = true;
+let lastPrices = {};
+let charts = {};
+let newsItems = [], srcFilter = 'All', tagFilter = '';
+let plChart, invChart;
+let psxData = null, psxSettings = null, psxReportsData = null, psxReportChart = null;
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  const next = cur === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', next);
+  try { localStorage.setItem('theme', next); } catch (e) {}
+  document.getElementById('themeBtn').textContent = next === 'light' ? '☀️ Light' : '🌙 Dark';
+  // Chart text/grid colors are baked in at creation time, so redraw everything visible now.
+  const activeApp = document.getElementById('view-psx').classList.contains('active') ? 'psx' : 'funds';
+  if (activeApp === 'funds') { loadDashboard(false); loadHistory(); } else { psxRenderCharts(); loadHistory(); }
+}
+(function initTheme() {
+  let t = 'dark';
+  try { t = localStorage.getItem('theme') || 'dark'; } catch (e) {}
+  document.documentElement.setAttribute('data-theme', t);
+})();
+function chartColors() {
+  const light = document.documentElement.getAttribute('data-theme') === 'light';
+  return light ? { text: '#475569', grid: 'rgba(71,85,105,.15)' } : { text: '#94a3b8', grid: 'rgba(148,163,184,.12)' };
+}
+const n2 = v => Number(v).toLocaleString('en-US', {maximumFractionDigits: 2, minimumFractionDigits: 2});
+const money = v => v === null || v === undefined ? 'N/A' : (v < 0 ? '-' : '') + 'Rs. ' + Math.abs(v).toLocaleString('en-US', {maximumFractionDigits: 0});
+const smoney = v => v === null || v === undefined ? 'N/A' : (v > 0 ? '+' : v < 0 ? '-' : '') + 'Rs. ' + Math.abs(v).toLocaleString('en-US', {maximumFractionDigits: 2});
+const spct = v => v === null || v === undefined ? 'N/A' : (v > 0 ? '+' : '') + Number(v).toFixed(2) + '%';
+const cls = v => v === null || v === undefined ? 'na' : (v > 0 ? 'pos' : v < 0 ? 'neg' : '');
+const pktTime = iso => new Date(iso).toLocaleTimeString('en-GB', { timeZone: 'Asia/Karachi', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+const todayStr = () => new Date().toISOString().slice(0,10);
+
+async function api(path, opts = {}) {
+  const token = await getFreshToken();
+  if (!token) {
+    location.href = '/login.html?next=' + encodeURIComponent(location.pathname);
+    return null;
+  }
+  const headers = {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer ' + token,
+    ...(opts.headers || {})
+  };
+  const resp = await fetch(API + path, {
+    method: opts.method || 'GET',
+    headers: headers,
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+    credentials: 'same-origin',
+  });
+  if (resp.status === 401) {
+    location.href = '/login.html?next=' + encodeURIComponent(location.pathname);
+    return null;
+  }
+  let data = null;
+  try { data = await resp.json(); } catch (e) {}
+  if (!resp.ok) {
+    alert((data && data.error) || 'Request failed (' + resp.status + ')');
+    return null;
+  }
+  return data;
+}
+
+/* ---------------- App-level tab switching ---------------- */
+function switchApp(which) {
+  document.getElementById('apptab-funds').classList.toggle('active', which === 'funds');
+  document.getElementById('apptab-psx').classList.toggle('active', which === 'psx');
+  document.getElementById('view-funds').classList.toggle('active', which === 'funds');
+  document.getElementById('view-psx').classList.toggle('active', which === 'psx');
+  try { localStorage.setItem('activeApp', which); } catch (e) {}
+  // Charts created while their tab was hidden (display:none) get 0 width/height and never
+  // fix themselves later, so force a fresh redraw every time a tab becomes visible.
+  if (which === 'funds') { loadDashboard(false); loadHistory(); }
+  else { psxLoad(); }
+}
+
+/* ================================================================
+   MUTUAL FUNDS (unchanged behaviour from before)
+   ================================================================ */
+async function loadDashboard(auto = false) {
+  const data = await api('/funds/dashboard');
+  if (!data) return;
+  const ae = document.activeElement;
+  if (auto && ae && ae.tagName === 'INPUT' && ae.closest('#funds')) return;
+  renderKpis(data.funds);
+  renderFunds(data.funds);
+  fillHistFunds(data.funds);
+  const asof = data.funds.flatMap(f => f.holdings).map(h => h.quote_asof).filter(Boolean)[0];
+  document.getElementById('statusLine').innerHTML =
+    'Last screen update: ' + pktTime(data.server_time) + ' PKT' + (asof ? ' · PSX price as of ' + esc(asof) : '') +
+    ' · <span id="cd"></span>';
+}
+
+function renderKpis(funds) {
+  const complete = funds.filter(f => f.computed.complete);
+  const inv = funds.reduce((s, f) => s + f.computed.invested, 0);
+  const invC = complete.reduce((s, f) => s + f.computed.invested, 0);
+  const pl = complete.reduce((s, f) => s + f.computed.total_gain_loss, 0);
+  const ret = invC > 0 ? pl / invC * 100 : null;
+  const partial = complete.length !== funds.length;
+  document.getElementById('kpis').innerHTML = `
+    <div class="kpi"><div class="l">Total Invested</div><div class="v">${money(inv)}</div><div class="n">${funds.length} fund(s)</div></div>
+    <div class="kpi"><div class="l">Today's Profit / Loss</div><div class="v ${cls(pl)}">${funds.length ? smoney(complete.length ? pl : null) : 'N/A'}</div><div class="n">${partial ? complete.length + ' of ' + funds.length + ' funds fully priced' : 'all funds priced'}</div></div>
+    <div class="kpi"><div class="l">Today's Return</div><div class="v ${cls(ret)}">${spct(ret)}</div><div class="n">on priced funds</div></div>
+    <div class="kpi"><div class="l">Current Value</div><div class="v">${complete.length ? money(invC + pl) : 'N/A'}</div><div class="n">invested + today's P/L</div></div>`;
+}
+
+function renderFunds(funds) {
+  const root = document.getElementById('funds');
+  Object.values(charts).forEach(c => { try { c.destroy(); } catch (e) {} });
+  charts = {};
+  root.innerHTML = '';
+  if (!funds.length) { root.innerHTML = '<p class="na">No funds yet — click “＋ New Fund”.</p>'; return; }
+  for (const f of funds) {
+    const div = document.createElement('div');
+    div.className = 'card';
+    try { div.innerHTML = fundHtml(f); } catch (e) { div.innerHTML = '<div class="err">Could not render ' + esc(f.name) + ': ' + esc(e.message) + '</div>'; }
+    root.appendChild(div);
+    try { drawFundCharts(f); } catch (e) { console.error(e); }
+  }
+  for (const f of funds) for (const h of f.holdings) {
+    if (h.current_price === null || h.current_price === undefined) continue;
+    const p = Number(h.current_price), old = lastPrices[h.id];
+    if (old !== undefined && old !== p) {
+      const el = document.getElementById('px-' + h.id);
+      if (el) el.classList.add(p > old ? 'flash-up' : 'flash-down');
+    }
+    lastPrices[h.id] = p;
+  }
+  firstRender = false;
+}
+
+function fundHtml(f) {
+  const c = f.computed;
+  const warn = c.validation_status !== 'OK' ? '<div class="err">⚠️ WEIGHTAGE VALIDATION ERROR — weights add up to ' + f.explicit_weightage_pct + '% (more than 100%)</div>' : '';
+  const info = !f.holdings.length ? '<div class="note">Add companies with their PSX ticker and weight % to start tracking.</div>'
+    : (!c.complete && c.priced_count < c.holdings_count ? '<div class="note">' + c.priced_count + ' of ' + c.holdings_count + ' companies priced. Add the PSX ticker for the rest, then press Refresh. Total shows N/A until every holding is priced. Partial P/L so far: <b class="' + cls(c.partial_gain_loss) + '">' + smoney(c.partial_gain_loss) + '</b></div>' : '');
+  const rows = f.holdings.map(h => {
+    const px = h.current_price !== null && h.current_price !== undefined ? n2(h.current_price) : '—';
+    const prev = h.previous_close !== null && h.previous_close !== undefined ? n2(h.previous_close) : '—';
+    return `<tr draggable="true" data-hid="${h.id}" data-fid="${f.id}" ondragstart="dragStart(event)" ondragover="dragOver(event)" ondrop="dragDrop(event,this)" ondragend="dragEnd(event)">
+      <td style="display:flex;align-items:center;gap:4px"><span class="drag-handle" title="Drag to reorder">⠿</span>${esc(h.company)}</td>
+      <td><input class="tk" value="${esc(h.ticker || '')}" placeholder="TICKER" onchange="updHolding('${h.id}',{ticker:this.value.trim().toUpperCase()},true)"></td>
+      <td><input type="number" step="0.01" value="${h.weight_pct}" onchange="updHolding('${h.id}',{weight_pct:Number(this.value)},false)">%</td>
+      <td>${prev}</td>
+      <td id="px-${h.id}"><b>${px}</b></td>
+      <td class="${cls(h.price_change_pct)}">${h.price_change_pct === null ? esc(h.ticker ? (h.data_status || 'Pending') : 'No ticker') : spct(h.price_change_pct)}</td>
+      <td>${money(h.allocated_amount)}</td>
+      <td class="${cls(h.gain_loss_amount)}"><b>${smoney(h.gain_loss_amount)}</b></td>
+      <td style="white-space:nowrap"><button class="icon-btn" title="Edit company" onclick="openEditCo('${h.id}','${esc(h.company)}','${esc(h.ticker||'')}')">✎</button><button class="icon-btn" title="Remove" onclick="delHolding('${h.id}')">✕</button></td></tr>`;
+  }).join('');
+  const mkt = f.remaining_market_pct > 0 ? `<tr class="market"><td>Market / Other (${f.benchmark})</td><td>—</td><td>${f.remaining_market_pct}%</td><td>—</td><td>—</td>
+      <td class="${cls(c.benchmark_return_pct)}">${spct(c.benchmark_return_pct)}</td><td>${money(c.market_allocated)}</td><td class="${cls(c.market_gain_loss)}"><b>${smoney(c.market_gain_loss)}</b></td><td></td></tr>` : '';
+  return `
+    <div class="fund-head">
+      <div><div class="fund-title">${esc(f.name)}</div>
+      <div class="bench">Benchmark: ${esc(f.benchmark)} · PSX trading date: ${c.trading_date || 'not fetched yet'}</div></div>
+      <div><button class="icon-btn" title="Edit fund" onclick='openFundModal(${JSON.stringify({id:f.id,name:f.name,benchmark:f.benchmark,inv:c.invested})})'>✎</button>
+      <button class="icon-btn" title="Delete fund" onclick="delFund('${f.id}')">🗑</button></div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="l">Invested</div><div class="v">${money(c.invested)}</div></div>
+      <div class="stat"><div class="l">Current value</div><div class="v">${c.current_value === null ? 'N/A' : money(c.current_value)}</div></div>
+      <div class="stat"><div class="l">Today P/L</div><div class="v ${cls(c.total_gain_loss)}">${smoney(c.total_gain_loss)}</div></div>
+      <div class="stat"><div class="l">Return</div><div class="v ${cls(c.total_return_pct)}">${c.total_return_pct === null ? 'N/A' : spct(c.total_return_pct)}</div></div>
+    </div>
+    ${warn}${info}
+    <div class="charts">
+      <div class="cbox"><canvas id="live-${f.id}"></canvas></div>
+      <div class="cbox"><canvas id="pie-${f.id}"></canvas></div>
+      <div class="cbox"><canvas id="bar-${f.id}"></canvas></div>
+    </div>
+    <div class="tblwrap"><table>
+      <tr><th></th><th>Company</th><th>Ticker</th><th>Weight</th><th>Prev close</th><th>Live price</th><th>Change</th><th>Your amount</th><th>Gain/Loss</th><th></th></tr>
+      ${rows}${mkt}
+    </table></div>
+    <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
+      <button class="secondary" onclick="openHoldingModal('${f.id}')">＋ Add Company</button>
+      <span class="bench" style="align-self:center">Weights total ${f.explicit_weightage_pct}% + market ${f.remaining_market_pct}% = 100%</span>
+    </div>`;
+}
+
+function axis() { const c = chartColors(); return { ticks: { color: c.text, font: { size: 9 } }, grid: { color: c.grid } }; }
+function drawFundCharts(f) {
+  const anim = firstRender ? {} : { duration: 0 };
+  const labels = f.holdings.map(h => (h.ticker || h.company).slice(0, 14));
+  const ticks = f.ticks || [];
+  charts['live' + f.id] = new Chart(document.getElementById('live-' + f.id), {
+    type: 'line',
+    data: { labels: ticks.map(t => pktTime(t.ts).replace(/:\d\d /, ' ')),
+      datasets: [{ data: ticks.map(t => Number(t.total_gain_loss)), borderColor: '#38bdf8', backgroundColor: 'rgba(56,189,248,.15)', fill: true, tension: .3, pointRadius: 2 }] },
+    options: { animation: anim, maintainAspectRatio: false, plugins: { legend: { display: false },
+      title: { display: true, text: ticks.length ? 'P/L today (Rs.) — hourly points' : 'P/L — press Refresh to start', color: chartColors().text, font: { size: 10 } } },
+      scales: { x: axis(), y: axis() } }
+  });
+  charts['pie' + f.id] = new Chart(document.getElementById('pie-' + f.id), {
+    type: 'doughnut',
+    data: { labels: [...labels, 'Market/Other'], datasets: [{ data: [...f.holdings.map(h => h.weight_pct), Math.max(f.remaining_market_pct, 0)], backgroundColor: PALETTE, borderWidth: 0 }] },
+    options: { animation: anim, maintainAspectRatio: false, cutout: '58%', plugins: { legend: { display: false },
+      title: { display: true, text: 'Weight allocation', color: chartColors().text, font: { size: 10 } } } }
+  });
+  const gl = f.holdings.map(h => h.gain_loss_amount === null ? 0 : h.gain_loss_amount);
+  charts['bar' + f.id] = new Chart(document.getElementById('bar-' + f.id), {
+    type: 'bar',
+    data: { labels, datasets: [{ data: gl, backgroundColor: gl.map(v => v >= 0 ? '#4ade80' : '#f87171') }] },
+    options: { animation: anim, maintainAspectRatio: false, plugins: { legend: { display: false },
+      title: { display: true, text: 'Gain/Loss by company (Rs.)', color: chartColors().text, font: { size: 10 } } },
+      scales: { x: axis(), y: axis() } }
+  });
+}
+
+async function refreshAll() {
+  if (busy) return;
+  busy = true;
+  const btn = document.getElementById('refreshBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spin">🔄</span> Fetching PSX…';
+  try {
+    await api('/calc/run-mine', { method: 'POST' });
+    await loadDashboard(false);
+    await loadHistory();
+  } finally {
+    btn.disabled = false; btn.innerHTML = '🔄 Refresh Live PSX';
+    busy = false; resetCountdown();
+  }
+}
+function setAuto(v) { autoSecs = Number(v); try { localStorage.setItem('autoSecs', v); } catch (e) {} resetCountdown(); }
+
+/* ---------- Auto-refresh intervals (Mutual Funds + PSX each have their own) ---------- */
+const AUTO_OPTS = [[10,'10 sec'],[30,'30 sec'],[60,'1 min'],[300,'5 min'],[600,'10 min'],[900,'15 min'],[1800,'30 min'],
+  [3600,'1 hour'],[10800,'3 hours'],[21600,'6 hours'],[86400,'24 hours'],[604800,'1 week'],[2592000,'1 month'],[0,'Manual refresh only']];
+function fillAuto(id, current) {
+  const sel = document.getElementById(id);
+  sel.innerHTML = AUTO_OPTS.map(([v, l]) => `<option value="${v}" ${Number(current) === v ? 'selected' : ''}>Auto refresh: ${l}</option>`).join('');
+  sel.title = 'Fetches fresh live PSX data on this schedule while this page is open. Faster = more load on the app. (Prices also refresh hourly 9am–4pm PKT on the server.)';
+}
+const fmtWait = s => s >= 86400 ? Math.round(s / 86400) + 'd' : s >= 3600 ? Math.round(s / 3600) + 'h' : s >= 60 ? Math.round(s / 60) + 'm' : s + 's';
+let psxAutoSecs = 0, psxAutoTimer = null, psxCountdown = 0;
+function psxSetAuto(v) { psxAutoSecs = Number(v); try { localStorage.setItem('psxAutoSecs', v); } catch (e) {} psxResetCountdown(); }
+function psxResetCountdown() {
+  psxCountdown = psxAutoSecs;
+  if (psxAutoTimer) clearInterval(psxAutoTimer);
+  const el = document.getElementById('psxCd');
+  if (!psxAutoSecs) { if (el) el.textContent = 'manual refresh'; return; }
+  psxAutoTimer = setInterval(() => {
+    if (document.hidden || !document.getElementById('view-psx').classList.contains('active')) return;
+    psxCountdown--;
+    const e2 = document.getElementById('psxCd'); if (e2) e2.textContent = 'next refresh in ' + fmtWait(Math.max(psxCountdown, 0));
+    if (psxCountdown <= 0) { psxCountdown = psxAutoSecs; psxRefresh(); }
+  }, 1000);
+}
+function resetCountdown() {
+  countdown = autoSecs;
+  document.getElementById('liveDot').classList.toggle('off', !autoSecs);
+  if (autoTimer) clearInterval(autoTimer);
+  if (!autoSecs) { const cd = document.getElementById('cd'); if (cd) cd.textContent = 'screen auto-update off'; return; }
+  autoTimer = setInterval(() => {
+    if (document.hidden) return;
+    if (!document.getElementById('view-funds').classList.contains('active')) return;
+    countdown--;
+    const cd = document.getElementById('cd'); if (cd) cd.textContent = 'next refresh in ' + fmtWait(Math.max(countdown, 0));
+    if (countdown <= 0) { countdown = autoSecs; refreshAll(); }
+  }, 1000);
+}
+
+function openFundModal(f) {
+  document.getElementById('fundModalTitle').textContent = f ? 'Edit Fund' : 'New Fund';
+  document.getElementById('f_id').value = f ? f.id : '';
+  document.getElementById('f_name').value = f ? f.name : '';
+  document.getElementById('f_benchmark').value = f ? f.benchmark : 'KSE-100';
+  document.getElementById('f_investment').value = f ? f.inv : '';
+  document.getElementById('fundModal').classList.add('show');
+}
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+function openHoldingModal(fid) { document.getElementById('h_fund_id').value = fid; ['h_company','h_ticker','h_weight'].forEach(i => document.getElementById(i).value = ''); document.getElementById('holdingModal').classList.add('show'); }
+
+async function saveFund() {
+  const fund_id = document.getElementById('f_id').value;
+  const name = document.getElementById('f_name').value.trim();
+  const benchmark = document.getElementById('f_benchmark').value;
+  const total_investment_amount = Number(document.getElementById('f_investment').value || 0);
+  if (!name) return alert('Fund name is required');
+  const r = fund_id ? await api('/funds/update', { method: 'POST', body: { fund_id, name, benchmark, total_investment_amount } })
+                    : await api('/funds/create', { method: 'POST', body: { name, benchmark, total_investment_amount } });
+  if (!r) return;
+  closeModal('fundModal');
+  await loadDashboard(false);
+  if (!fund_id) refreshAll();
+}
+async function addHolding() {
+  const fund_id = document.getElementById('h_fund_id').value;
+  const company = document.getElementById('h_company').value.trim();
+  const ticker = document.getElementById('h_ticker').value.trim().toUpperCase();
+  const weight_pct = Number(document.getElementById('h_weight').value || 0);
+  if (!company || !weight_pct) return alert('Company name and weight % are required');
+  const r = await api('/holdings/add', { method: 'POST', body: { fund_id, company, ticker, weight_pct } });
+  if (!r) return;
+  closeModal('holdingModal');
+  await loadDashboard(false);
+  if (ticker) refreshAll();
+}
+async function updHolding(holding_id, patch, needPrice) {
+  const r = await api('/holdings/update', { method: 'POST', body: { holding_id, ...patch } });
+  if (!r) return;
+  if (needPrice) await refreshAll(); else await loadDashboard(false);
+}
+async function delHolding(holding_id) {
+  if (!confirm('Remove this company from the fund?')) return;
+  if (await api('/holdings/delete', { method: 'POST', body: { holding_id } })) loadDashboard(false);
+}
+async function delFund(fund_id) {
+  if (!confirm('Delete this whole fund and all its history?')) return;
+  if (await api('/funds/delete', { method: 'POST', body: { fund_id } })) { await loadDashboard(false); loadHistory(); }
+}
+async function signOut() {
+  try {
+    if (typeof firebase !== 'undefined' && firebase.auth) {
+      await firebase.auth().signOut();
+    }
+  } catch (e) {}
+  location.href = '/login.html';
+}
+
+/* ===== Edit Company ===== */
+function openEditCo(id, company, ticker) {
+  document.getElementById('editCoId').value = id;
+  document.getElementById('editCoName').value = company;
+  document.getElementById('editCoTicker').value = ticker;
+  document.getElementById('editCoModal').classList.add('show');
+  setTimeout(() => document.getElementById('editCoName').focus(), 60);
+}
+async function saveEditCo() {
+  const id = document.getElementById('editCoId').value;
+  const company = document.getElementById('editCoName').value.trim();
+  const ticker = document.getElementById('editCoTicker').value.trim().toUpperCase();
+  if (!company) return alert('Company name is required');
+  const r = await api('/holdings/update', { method: 'POST', body: { holding_id: id, company, ticker } });
+  if (!r) return;
+  document.getElementById('editCoModal').classList.remove('show');
+  await loadDashboard(false);
+  if (ticker) refreshAll();
+}
+
+/* ===== Drag & Drop Row Reorder ===== */
+let _dragSrc = null;
+function dragStart(e) {
+  _dragSrc = e.currentTarget;
+  e.currentTarget.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+function dragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  document.querySelectorAll('tr.drag-over').forEach(r => r.classList.remove('drag-over'));
+  const tr = e.currentTarget;
+  if (tr !== _dragSrc) tr.classList.add('drag-over');
+}
+function dragEnd(e) {
+  document.querySelectorAll('tr.dragging, tr.drag-over').forEach(r => {
+    r.classList.remove('dragging'); r.classList.remove('drag-over');
+  });
+}
+async function dragDrop(e, target) {
+  e.preventDefault();
+  if (!_dragSrc || _dragSrc === target) return;
+  const tbody = _dragSrc.parentNode;
+  const rows = Array.from(tbody.querySelectorAll('tr[data-hid]'));
+  const srcIdx = rows.indexOf(_dragSrc);
+  const tgtIdx = rows.indexOf(target);
+  if (srcIdx === -1 || tgtIdx === -1) return;
+  // Reorder DOM immediately
+  if (srcIdx < tgtIdx) tbody.insertBefore(_dragSrc, target.nextSibling);
+  else tbody.insertBefore(_dragSrc, target);
+  // Save new order to server
+  const fundId = _dragSrc.dataset.fid;
+  const newOrder = Array.from(tbody.querySelectorAll('tr[data-hid]')).map(r => r.dataset.hid);
+  await api('/holdings/reorder', { method: 'POST', body: { fund_id: fundId, holding_ids: newOrder } });
+}
+
+/* ===== Sync to Firebase Hosting ===== */
+async function syncToFirebase() {
+  const btn = document.getElementById('syncBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Syncing...';
+  try {
+    const r = await api('/sync/firebase', { method: 'POST' });
+    if (r && r.success) {
+      btn.textContent = '✅ Synced!';
+      setTimeout(() => { btn.disabled = false; btn.textContent = '🔄 Sync to Firebase'; }, 3000);
+    } else {
+      btn.textContent = '❌ Failed';
+      setTimeout(() => { btn.disabled = false; btn.textContent = '🔄 Sync to Firebase'; }, 3000);
+    }
+  } catch (err) {
+    btn.textContent = '❌ Error';
+    setTimeout(() => { btn.disabled = false; btn.textContent = '🔄 Sync to Firebase'; }, 3000);
+  }
+}
+
+function fillHistFunds(funds) {
+  const sel = document.getElementById('histFund'), cur = sel.value;
+  sel.innerHTML = '<option value="">All funds</option>' + funds.map(f => `<option value="${f.id}">${esc(f.name)}</option>`).join('');
+  sel.value = funds.some(f => f.id === cur) ? cur : '';
+}
+function setPeriod(p) {
+  period = p;
+  ['daily','weekly','monthly','yearly','fy','since'].forEach(x => document.getElementById('tab-' + x).classList.toggle('active', x === p));
+  loadHistory();
+}
+function periodLabel(d) {
+  const dt = new Date(d + 'T00:00:00Z');
+  if (period === 'fy') { const y = dt.getUTCFullYear(); return 'FY' + String(y).slice(2) + '-' + String(y + 1).slice(2); }
+  if (period === 'yearly') return String(dt.getUTCFullYear());
+  if (period === 'monthly') return dt.toLocaleDateString('en-GB', { month: 'short', year: 'numeric', timeZone: 'UTC' });
+  if (period === 'weekly') return 'Wk ' + dt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', timeZone: 'UTC' });
+  return dt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', timeZone: 'UTC' });
+}
+async function loadHistory() {
+  const fid = document.getElementById('histFund').value;
+  const rows = await api('/calc/history?period=' + (period === 'since' ? 'daily' : period) + (fid ? '&fund_id=' + fid : ''));
+  if (!rows) return;
+  const labels = rows.map(r => periodLabel(r.period_start));
+  const pl = rows.map(r => r.total_gain_loss);
+  let run = 0; const cum = pl.map(v => (run += v));
+  const inv = rows.map(r => r.invested);
+  const value = rows.map((r, i) => r.invested + cum[i]);
+  if (plChart) plChart.destroy(); if (invChart) invChart.destroy();
+  const opt = (title) => ({ maintainAspectRatio: false, plugins: { legend: { labels: { color: chartColors().text, font: { size: 10 } } }, title: { display: true, text: title, color: chartColors().text, font: { size: 11 } } }, scales: { x: axis(), y: axis() } });
+  plChart = new Chart(document.getElementById('plChart'), { type: 'bar', data: { labels, datasets: [
+    { type: 'bar', label: 'Profit / Loss (Rs.)', data: pl, backgroundColor: pl.map(v => v >= 0 ? '#4ade80' : '#f87171') },
+    { type: 'line', label: 'Cumulative P/L', data: cum, borderColor: '#38bdf8', tension: .3, pointRadius: 2 },
+    { type: 'line', label: 'Average per period', data: pl.map(() => pl.length ? pl.reduce((a, b) => a + b, 0) / pl.length : 0), borderColor: '#f59e0b', borderDash: [6, 4], pointRadius: 0 }] }, options: opt(period === 'since' ? 'Since investment — daily & cumulative P/L (Rs.)' : 'Earnings / Loss — ' + period) });
+  invChart = new Chart(document.getElementById('invChart'), { type: 'bar', data: { labels, datasets: [
+    { type: 'bar', label: 'Investment (Rs.)', data: inv, backgroundColor: 'rgba(124,58,237,.55)' },
+    { type: 'line', label: 'Portfolio value (Rs.)', data: value, borderColor: '#f59e0b', tension: .3, pointRadius: 2 }] }, options: opt('Investment vs Portfolio value — ' + period) });
+  const tot = pl.reduce((a, b) => a + b, 0), good = pl.filter(v => v > 0).length;
+  const best = pl.length ? Math.max(...pl) : null, worst = pl.length ? Math.min(...pl) : null;
+  document.getElementById('hstats').innerHTML = rows.length ? `
+    <div class="stat"><div class="l">Total P/L (shown range)</div><div class="v ${cls(tot)}">${smoney(tot)}</div></div>
+    <div class="stat"><div class="l">Best ${period.replace('ly','').replace('dai','day')}</div><div class="v pos">${smoney(best)}</div></div>
+    <div class="stat"><div class="l">Worst</div><div class="v neg">${smoney(worst)}</div></div>
+    <div class="stat"><div class="l">Profitable periods</div><div class="v">${good} / ${rows.length}</div></div>
+    <div class="stat"><div class="l">Average P/L per period</div><div class="v ${cls(tot / rows.length)}">${smoney(tot / rows.length)}</div></div>
+    <div class="stat"><div class="l">Invested (latest)</div><div class="v">${money(rows[rows.length - 1].invested)}</div></div>
+    <div class="stat"><div class="l">Return on investment</div><div class="v ${cls(tot)}">${rows[rows.length - 1].invested ? spct(tot / rows[rows.length - 1].invested * 100) : 'N/A'}</div></div>
+    ${rows.some(r => r.has_backfill) ? '<div class="note" style="width:100%">ⓘ Days you did not refresh were rebuilt from PSX official daily closes using your fund\'s <b>current</b> weights and investment amount.</div>' : ''}` :
+    '<div class="note" style="width:100%">History builds up automatically: every refresh stores that trading day\'s result. Press “Refresh Live PSX” to record today.</div>';
+}
+
+const SRC_GROUPS = { 'All': null, 'Mettis': ['Mettis Global'], 'Geo': ['Geo News','Geo Business'], 'Jang': ['Jang (Urdu)'], 'ARY': ['ARY News','ARY Business'], 'Tribune': ['Express Tribune','Tribune Business'], 'Business Recorder': ['Business Recorder'], 'International': ['BBC World','Al Jazeera'], 'Company Results': '__PSX_ANNOUNCEMENT__' };
+const FOCUS = {
+  'Economy': ['Economy', 'Inflation', 'SBP / Interest Rate', 'IMF / Bailout', 'Trade / Exports', 'Fuel Prices'],
+  'Forex': ['Rupee / Dollar', 'Gold Price'],
+  'PSX': ['Stock Market', 'Financial Results', 'Board Meeting'],
+  'War & Global': ['War / Geopolitics', 'Global Markets', 'Oil & Gas'],
+};
+let focusFilter = '';
+async function loadNews(force) {
+  const btn = document.getElementById('newsBtn');
+  if (force) { btn.disabled = true; btn.textContent = 'Fetching…'; await api('/news/fetch', { method: 'POST' }); }
+  const data = await api('/news/list');
+  if (force) { btn.disabled = false; btn.textContent = 'Refresh News'; }
+  if (!data) return;
+  newsItems = data.items || [];
+  renderNews();
+}
+function renderNews() {
+  document.getElementById('srcChips').innerHTML = Object.keys(SRC_GROUPS).map(k => `<span class="chip ${srcFilter === k ? 'active' : ''}" onclick="srcFilter='${k}';renderNews()">${k}</span>`).join('');
+  const tags = {}; newsItems.forEach(n => (n.tags || []).forEach(t => tags[t] = (tags[t] || 0) + 1));
+  document.getElementById('tagChips').innerHTML = '<span class="bench" style="align-self:center">Impact topic:</span>' +
+    `<span class="chip ${tagFilter === '' ? 'active' : ''}" onclick="tagFilter='';renderNews()">All</span>` +
+    Object.entries(tags).sort((a, b) => b[1] - a[1]).map(([t, c]) => `<span class="chip ${tagFilter === t ? 'active' : ''}" data-t="${esc(t)}" onclick="tagFilter=this.dataset.t;renderNews()">${esc(t)} (${c})</span>`).join('');
+  const grp = SRC_GROUPS[srcFilter];
+  document.getElementById('focusChips').innerHTML = '<span class="bench" style="align-self:center">Focus:</span>' +
+    `<span class="chip ${focusFilter === '' ? 'active' : ''}" onclick="focusFilter='';renderNews()">All news</span>` +
+    Object.keys(FOCUS).map(k => `<span class="chip ${focusFilter === k ? 'active' : ''}" onclick="focusFilter='${k}';renderNews()">${k}</span>`).join('');
+  const list = newsItems.filter(n =>
+    (!grp || (grp === '__PSX_ANNOUNCEMENT__' ? n.source_site.startsWith('PSX Announcement') : grp.includes(n.source_site))) &&
+    (!focusFilter || (n.tags || []).some(t => FOCUS[focusFilter].includes(t))) &&
+    (!tagFilter || (n.tags || []).includes(tagFilter)));
+  document.getElementById('news').innerHTML = list.length ? list.map(n => {
+    const d = new Date(n.published_at);
+    const date = d.toLocaleDateString('en-GB', { timeZone: 'Asia/Karachi', day: '2-digit', month: 'short', year: 'numeric' });
+    const time = d.toLocaleTimeString('en-GB', { timeZone: 'Asia/Karachi', hour: '2-digit', minute: '2-digit', hour12: true });
+    return `<div class="news-item"><div class="ntime"><b>${date}</b>${time} PKT</div>
+      <div class="nhead"><span class="nsrc">${esc(n.source_site)}</span><br>
+      <a href="${esc(n.link || '#')}" target="_blank" rel="noopener" dir="auto">${esc(n.headline)}</a>
+      <div>${(n.tags || []).map(t => `<span class="tag" data-t="${esc(t)}" onclick="tagFilter=this.dataset.t;renderNews()">${esc(t)}</span>`).join('')}</div></div></div>`;
+  }).join('') : '<p class="na">No headlines match this filter.</p>';
+}
+
+/* ================================================================
+   PSX DIRECT PORTFOLIO (independent state, independent APIs)
+   ================================================================ */
+async function psxLoad() {
+  document.getElementById('psxRefreshBtn').disabled = true;
+  const data = await api('/psx/dashboard');
+  document.getElementById('psxRefreshBtn').disabled = false;
+  if (!data) return;
+  psxData = data;
+  psxRenderKpis();
+  psxRenderActive();
+  psxRenderSold();
+  psxRenderCharts();
+  psxLoadReports();
+  psxLoadHistory();
+}
+async function psxRefresh() {
+  const btn = document.getElementById('psxRefreshBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spin">🔄</span> Fetching…';
+  await psxLoad();
+  btn.disabled = false; btn.innerHTML = '🔄 Refresh Live Prices';
+}
+
+function psxRenderKpis() {
+  const s = psxData.summary;
+  document.getElementById('psxKpis').innerHTML = `
+    <div class="kpi"><div class="l">💰 Available Free Cash</div><div class="v ${cls(s.cash_balance)}">${money(s.cash_balance)}</div><div class="n"><a href="#" onclick="psxOpenCash();return false" style="color:#8b7ff0">Deposit / Withdraw / Ledger</a></div></div>
+    <div class="kpi"><div class="l">Invested (Active)</div><div class="v">${money(s.invested_total)}</div><div class="n">${s.active_count} active holding(s)</div></div>
+    <div class="kpi"><div class="l">Current Value</div><div class="v">${s.current_value_total === null ? 'N/A' : money(s.current_value_total)}</div><div class="n">${s.priced_count} of ${s.active_count} priced</div></div>
+    <div class="kpi"><div class="l">Unrealized P/L</div><div class="v ${cls(s.unrealized_total)}">${s.unrealized_total === null ? 'N/A' : smoney(s.unrealized_total)}</div><div class="n">on active holdings</div></div>
+    <div class="kpi"><div class="l">Realized P/L</div><div class="v ${cls(s.realized_total)}">${smoney(s.realized_total)}</div><div class="n">${s.sold_count} closed trade(s), after tax</div></div>`;
+}
+
+/* ---------- Cash (free cash ledger) ---------- */
+async function psxOpenCash() {
+  document.getElementById('pc_amount').value = '';
+  document.getElementById('pc_notes').value = '';
+  document.getElementById('pc_date').value = todayStr();
+  document.getElementById('psxCashModal').classList.add('show');
+  psxLoadCash();
+}
+async function psxLoadCash() {
+  const data = await api('/psx/cash');
+  if (!data) return;
+  document.getElementById('pc_balance').innerHTML = `<span class="${cls(data.balance)}">${money(data.balance)}</span>`;
+  const TYPE = { deposit: '⬆ Deposit', withdrawal: '⬇ Withdrawal', buy: '🛒 Buy', sell: '💵 Sell' };
+  document.getElementById('pc_ledger').innerHTML = '<tr><th>Date</th><th>Type</th><th>Amount</th><th>Note</th><th></th></tr>' +
+    (data.ledger.length ? data.ledger.map(l => `<tr>
+      <td>${String(l.trade_date).slice(0,10)}</td><td>${TYPE[l.type] || l.type}</td>
+      <td class="${cls(l.amount)}">${smoney(l.amount)}</td><td style="white-space:normal;text-align:left">${esc(l.notes || '')}</td>
+      <td>${(l.type==='deposit'||l.type==='withdrawal') ? `<button class="tiny secondary" style="color:#f87171" onclick="psxDeleteCash('${l.id}')">🗑</button>` : ''}</td></tr>`).join('')
+      : '<tr><td colspan="5" class="na" style="text-align:center">No cash movements yet — add a deposit to start.</td></tr>');
+}
+async function psxSaveCash(type) {
+  const amount = Number(document.getElementById('pc_amount').value);
+  if (!(amount > 0)) return alert('Enter an amount greater than 0');
+  const r = await api('/psx/cash', { method: 'POST', body: { action: 'add', type, amount,
+    trade_date: document.getElementById('pc_date').value || todayStr(), notes: document.getElementById('pc_notes').value } });
+  if (!r) return;
+  document.getElementById('pc_amount').value = ''; document.getElementById('pc_notes').value = '';
+  psxLoadCash(); psxLoad();
+}
+async function psxDeleteCash(id) {
+  if (!confirm('Delete this cash entry?')) return;
+  if (await api('/psx/cash', { method: 'POST', body: { action: 'delete', id } })) { psxLoadCash(); psxLoad(); }
+}
+
+/* ---------- Portfolio P/L history (daily / weekly / monthly / yearly) ---------- */
+let psxHistPeriod = 'daily', psxHistCharts = {};
+function psxSetHistPeriod(p) {
+  psxHistPeriod = p;
+  ['daily','weekly','monthly','yearly'].forEach(x => document.getElementById('phtab-' + x).classList.toggle('active', x === p));
+  psxLoadHistory();
+}
+async function psxLoadHistory() {
+  const rows = await api('/psx/history?period=' + psxHistPeriod);
+  if (!rows) return;
+  Object.values(psxHistCharts).forEach(c => { try { c.destroy(); } catch (e) {} });
+  psxHistCharts = {};
+  const box = document.getElementById('psxHistStats');
+  if (!rows.length) {
+    box.innerHTML = '<div class="note" style="width:100%">History builds up automatically: every time prices refresh, today\'s portfolio value and P/L are saved. Press “Refresh Live Prices” to record today, then come back tomorrow for the second point.</div>';
+    return;
+  }
+  const labels = rows.map(r => r.period);
+  const pl = rows.map(r => r.period_pl);
+  const cum = rows.map(r => r.total_pl);
+  psxHistCharts.pl = new Chart(document.getElementById('psxHistPl'), { type: 'bar', data: { labels, datasets: [
+    { type: 'bar', label: 'Period P/L (Rs.)', data: pl, backgroundColor: pl.map(v => v >= 0 ? '#4ade80' : '#f87171') },
+    { type: 'line', label: 'Total P/L to date', data: cum, borderColor: '#38bdf8', tension: .3, pointRadius: 2 }] },
+    options: { maintainAspectRatio: false, plugins: { legend: { labels: { color: chartColors().text, font: { size: 10 } } }, title: { display: true, text: 'Profit / Loss — ' + psxHistPeriod, color: chartColors().text, font: { size: 11 } } }, scales: { x: axis(), y: axis() } } });
+  psxHistCharts.val = new Chart(document.getElementById('psxHistVal'), { type: 'bar', data: { labels, datasets: [
+    { type: 'bar', label: 'Invested (Rs.)', data: rows.map(r => r.invested), backgroundColor: 'rgba(124,58,237,.55)' },
+    { type: 'line', label: 'Portfolio value (Rs.)', data: rows.map(r => r.value), borderColor: '#f59e0b', tension: .3, pointRadius: 2 },
+    { type: 'line', label: 'Free cash (Rs.)', data: rows.map(r => r.cash), borderColor: '#4ade80', tension: .3, pointRadius: 2 }] },
+    options: { maintainAspectRatio: false, plugins: { legend: { labels: { color: chartColors().text, font: { size: 10 } } }, title: { display: true, text: 'Invested vs Value vs Cash — ' + psxHistPeriod, color: chartColors().text, font: { size: 11 } } }, scales: { x: axis(), y: axis() } } });
+  const tot = pl.reduce((a, b) => a + b, 0), good = pl.filter(v => v > 0).length;
+  box.innerHTML = `
+    <div class="stat"><div class="l">Total P/L (shown range)</div><div class="v ${cls(tot)}">${smoney(tot)}</div></div>
+    <div class="stat"><div class="l">Best period</div><div class="v pos">${smoney(Math.max(...pl))}</div></div>
+    <div class="stat"><div class="l">Worst period</div><div class="v neg">${smoney(Math.min(...pl))}</div></div>
+    <div class="stat"><div class="l">Profitable periods</div><div class="v">${good} / ${rows.length}</div></div>`;
+}
+
+function psxRenderActive() {
+  const rows = psxData.active;
+  const tbl = document.getElementById('psxActiveTable');
+  document.getElementById('psxActiveEmpty').style.display = rows.length ? 'none' : 'block';
+  tbl.innerHTML = '<tr><th>Company</th><th>Ticker</th><th>Qty</th><th>Buy Price</th><th>Buy Date</th><th>Days Held</th><th>Live Price</th><th>Day Δ%</th><th>Signal</th><th>Invested</th><th>Current Value</th><th>Unrealized P/L</th><th></th></tr>' +
+    rows.map(r => `<tr>
+      <td>${esc(r.company)}</td><td>${esc(r.ticker)}</td><td>${n2(r.quantity)}</td><td>${n2(r.buy_price)}</td>
+      <td>${r.buy_date}</td><td>${r.holding_days}</td>
+      <td>${r.live_price !== null ? n2(r.live_price) : esc(r.quote_status)}</td>
+      <td class="${cls(r.day_change_pct)}">${r.day_change_pct !== null ? spct(r.day_change_pct) : '—'}</td>
+      <td>${psxSignalBadge(r.indicators)}</td>
+      <td>${money(r.invested)}</td>
+      <td>${r.current_value !== null ? money(r.current_value) : 'N/A'}</td>
+      <td class="${cls(r.unrealized_pl)}"><b>${r.unrealized_pl !== null ? smoney(r.unrealized_pl) : 'N/A'}</b>${r.unrealized_pct !== null ? '<br><span style="font-size:10.5px">'+spct(r.unrealized_pct)+'</span>' : ''}</td>
+      <td style="white-space:nowrap">
+        <button class="tiny secondary" onclick="psxOpenBuy('${esc(r.ticker)}','${esc(r.company).replace(/'/g,"\\'")}')">＋Add</button>
+        <button class="tiny" onclick='psxOpenSell(${JSON.stringify(r)})'>Sell</button>
+        <button class="tiny secondary" onclick='psxOpenEdit(${JSON.stringify(r)})'>Edit</button>
+        <button class="tiny secondary" onclick='psxOpenDetails(${JSON.stringify(r)})'>Details</button>
+        <button class="tiny secondary" style="color:#f87171" onclick="psxQuickDelete('${r.id}')">🗑</button>
+      </td></tr>`).join('');
+  psxRenderActiveTotals(rows);
+}
+function psxGroupByTicker(rows) {
+  const m = new Map();
+  for (const r of rows) {
+    if (!m.has(r.ticker)) m.set(r.ticker, { ticker: r.ticker, company: r.company, qty: 0, invested: 0, currentValue: 0, unrealizedPl: 0, priced: 0, count: 0 });
+    const g = m.get(r.ticker);
+    g.qty += Number(r.quantity); g.invested += Number(r.invested); g.count++;
+    if (r.current_value !== null) { g.currentValue += Number(r.current_value); g.unrealizedPl += Number(r.unrealized_pl); g.priced++; }
+  }
+  return [...m.values()];
+}
+function psxRenderActiveTotals(rows) {
+  const tbl = document.getElementById('psxActiveTotalsTable');
+  if (!rows.length) { tbl.innerHTML = ''; return; }
+  const groups = psxGroupByTicker(rows);
+  tbl.innerHTML = '<tr><th>Ticker</th><th>Net Qty</th><th>Avg Buy Price</th><th>Total Invested</th><th>Total Current Value</th><th>Net Unrealized P/L</th></tr>' +
+    groups.map(g => {
+      const avgBuy = g.qty ? g.invested / g.qty : null;
+      const fullyPriced = g.priced === g.count;
+      return `<tr class="totals"><td>${esc(g.company)} (${esc(g.ticker)})</td><td>${n2(g.qty)}</td><td>${avgBuy !== null ? n2(avgBuy) : 'N/A'}</td>
+        <td>${money(g.invested)}</td><td>${fullyPriced ? money(g.currentValue) : 'N/A'}</td>
+        <td class="${cls(fullyPriced ? g.unrealizedPl : null)}">${fullyPriced ? smoney(g.unrealizedPl) : 'N/A'}</td></tr>`;
+    }).join('');
+}
+function psxSignalBadge(ind) {
+  if (!ind || !ind.signal) return '<span class="na">—</span>';
+  const map = { 'STRONG BUY': 'badge buy', BUY: 'badge buy', 'STRONG SELL': 'badge sell', SELL: 'badge sell', HOLD: 'badge', 'INSUFFICIENT HISTORY': 'badge' };
+  const label = ind.signal === 'INSUFFICIENT HISTORY' ? `Building (${ind.history_days}d)` : ind.signal;
+  const strong = ind.signal.startsWith('STRONG') ? 'font-weight:700;' : '';
+  return `<span class="${map[ind.signal] || 'badge'}" style="${strong}" title="${esc((ind.signal_reasons||[]).join(' · '))}">${esc(label)}</span>`;
+}
+
+function psxRenderSold() {
+  const rows = psxData.sold;
+  const tbl = document.getElementById('psxSoldTable');
+  document.getElementById('psxSoldEmpty').style.display = rows.length ? 'none' : 'block';
+  tbl.innerHTML = '<tr><th>Company</th><th>Ticker</th><th>Qty</th><th>Buy Price</th><th>Sell Price</th><th>Buy Date</th><th>Sell Date</th><th>Days Held</th><th>Realized P/L</th><th></th></tr>' +
+    rows.map(r => `<tr>
+      <td>${esc(r.company)}</td><td>${esc(r.ticker)}</td><td>${n2(r.quantity)}</td><td>${n2(r.buy_price)}</td><td>${n2(r.sell_price)}</td>
+      <td>${r.buy_date}</td><td>${r.sell_date}</td><td>${r.holding_days}</td>
+      <td class="${cls(r.realized_pl)}"><b>${smoney(r.realized_pl)}</b></td>
+      <td><button class="tiny secondary" style="color:#f87171" onclick="psxQuickDelete('${r.id}')">🗑</button></td></tr>`).join('');
+  psxRenderSoldTotals(rows);
+}
+function psxRenderSoldTotals(rows) {
+  const tbl = document.getElementById('psxSoldTotalsTable');
+  if (!rows.length) { tbl.innerHTML = ''; return; }
+  const m = new Map();
+  for (const r of rows) {
+    if (!m.has(r.ticker)) m.set(r.ticker, { ticker: r.ticker, company: r.company, qty: 0, buyValue: 0, sellValue: 0, realizedPl: 0, count: 0 });
+    const g = m.get(r.ticker);
+    g.qty += Number(r.quantity); g.buyValue += Number(r.quantity) * Number(r.buy_price);
+    g.sellValue += Number(r.quantity) * Number(r.sell_price); g.realizedPl += Number(r.realized_pl); g.count++;
+  }
+  const groups = [...m.values()];
+  tbl.innerHTML = '<tr><th>Ticker</th><th>Net Qty Sold</th><th>Avg Buy Price</th><th>Avg Sell Price</th><th>Trades</th><th>Net Realized P/L</th></tr>' +
+    groups.map(g => `<tr class="totals"><td>${esc(g.company)} (${esc(g.ticker)})</td><td>${n2(g.qty)}</td>
+      <td>${n2(g.buyValue / g.qty)}</td><td>${n2(g.sellValue / g.qty)}</td><td>${g.count}</td>
+      <td class="${cls(g.realizedPl)}">${smoney(g.realizedPl)}</td></tr>`).join('') +
+    (groups.length > 1 ? `<tr class="totals"><td><b>All companies</b></td><td></td><td></td><td></td><td>${rows.length}</td>
+      <td class="${cls(groups.reduce((s,g)=>s+g.realizedPl,0))}"><b>${smoney(groups.reduce((s,g)=>s+g.realizedPl,0))}</b></td></tr>` : '');
+}
+async function psxQuickDelete(lot_id) {
+  if (!confirm('Delete this holding entry permanently? This cannot be undone.')) return;
+  if (await api('/psx/update', { method: 'POST', body: { lot_id, action: 'delete' } })) psxLoad();
+}
+function psxOpenHistoryModal() {
+  ['ph_company','ph_ticker','ph_qty','ph_buy_price','ph_buy_date','ph_sell_price','ph_sell_date'].forEach(i => document.getElementById(i).value = '');
+  document.getElementById('psxHistoryModal').classList.add('show');
+}
+async function psxSaveHistory() {
+  const body = {
+    company: document.getElementById('ph_company').value.trim(),
+    ticker: document.getElementById('ph_ticker').value.trim().toUpperCase(),
+    quantity: Number(document.getElementById('ph_qty').value),
+    buy_price: Number(document.getElementById('ph_buy_price').value),
+    buy_date: document.getElementById('ph_buy_date').value,
+    sell_price: Number(document.getElementById('ph_sell_price').value),
+    sell_date: document.getElementById('ph_sell_date').value,
+  };
+  if (!body.company || !body.ticker || !body.quantity || !body.buy_price || !body.buy_date || !body.sell_price || !body.sell_date) {
+    return alert('All fields are required.');
+  }
+  const r = await api('/psx/add-history', { method: 'POST', body });
+  if (!r) return;
+  closeModal('psxHistoryModal');
+  psxLoad();
+}
+
+let psxCharts = {};
+function psxRenderCharts() {
+  Object.values(psxCharts).forEach(c => { try { c.destroy(); } catch (e) {} });
+  psxCharts = {};
+  const rows = psxData.active;
+  const labels = rows.map(r => r.ticker);
+  psxCharts.pie = new Chart(document.getElementById('psxPieChart'), {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data: rows.map(r => r.current_value ?? r.invested), backgroundColor: PALETTE, borderWidth: 0 }] },
+    options: { maintainAspectRatio: false, cutout: '58%', plugins: { legend: { position: 'bottom', labels: { color: chartColors().text, font: { size: 10 }, boxWidth: 10 } },
+      title: { display: true, text: 'Allocation by current value', color: chartColors().text, font: { size: 10 } } } }
+  });
+  const gl = rows.map(r => r.unrealized_pl ?? 0);
+  psxCharts.bar = new Chart(document.getElementById('psxBarChart'), {
+    type: 'bar',
+    data: { labels, datasets: [{ data: gl, backgroundColor: gl.map(v => v >= 0 ? '#4ade80' : '#f87171') }] },
+    options: { maintainAspectRatio: false, plugins: { legend: { display: false },
+      title: { display: true, text: 'Unrealized Gain/Loss by holding (Rs.)', color: chartColors().text, font: { size: 10 } } },
+      scales: { x: axis(), y: axis() } }
+  });
+}
+
+function psxOpenBuy(ticker, company) {
+  document.getElementById('pb_company').value = company || '';
+  document.getElementById('pb_ticker').value = ticker || '';
+  document.getElementById('pb_qty').value = '';
+  document.getElementById('pb_price').value = '';
+  document.getElementById('pb_date').value = todayStr();
+  document.getElementById('pb_preview').style.display = 'none';
+  document.getElementById('psxBuyModal').classList.add('show');
+}
+async function psxSaveBuy() {
+  const company = document.getElementById('pb_company').value.trim();
+  const ticker = document.getElementById('pb_ticker').value.trim().toUpperCase();
+  const quantity = Number(document.getElementById('pb_qty').value);
+  const buy_price = Number(document.getElementById('pb_price').value);
+  const buy_date = document.getElementById('pb_date').value || todayStr();
+  if (!company || !ticker || !quantity || !buy_price) return alert('Company, ticker, quantity and buy price are required');
+  const r = await api('/psx/buy', { method: 'POST', body: { company, ticker, quantity, buy_price, buy_date } });
+  if (!r) return;
+  closeModal('psxBuyModal');
+  psxLoad();
+}
+
+function psxOpenSell(row) {
+  document.getElementById('ps_lot_id').value = row.id;
+  document.getElementById('ps_info').innerHTML = `<b>${esc(row.company)}</b> (${esc(row.ticker)}) — ${n2(row.quantity)} shares bought at Rs. ${n2(row.buy_price)} on ${row.buy_date}`;
+  document.getElementById('ps_price').value = row.live_price || '';
+  document.getElementById('ps_date').value = todayStr();
+  document.getElementById('ps_preview').style.display = 'none';
+  document.getElementById('psxSellModal').classList.add('show');
+}
+async function psxSaveSell() {
+  const lot_id = document.getElementById('ps_lot_id').value;
+  const sell_price = Number(document.getElementById('ps_price').value);
+  const sell_date = document.getElementById('ps_date').value || todayStr();
+  if (!sell_price) return alert('Sell price is required');
+  const r = await api('/psx/sell', { method: 'POST', body: { lot_id, sell_price, sell_date } });
+  if (!r) return;
+  closeModal('psxSellModal');
+  alert(`Sold. Net P/L after brokerage, tax and CGT: ${smoney(Number(r.realized_pl))}`);
+  psxLoad();
+}
+
+function psxOpenDetails(row) {
+  document.getElementById('pd_body').innerHTML = `
+    <div class="detailrow"><span>Company</span><b>${esc(row.company)}</b></div>
+    <div class="detailrow"><span>Ticker</span><b>${esc(row.ticker)}</b></div>
+    <div class="detailrow"><span>Quantity</span><b>${n2(row.quantity)}</b></div>
+    <div class="detailrow"><span>Buy price</span><b>Rs. ${n2(row.buy_price)}</b></div>
+    <div class="detailrow"><span>Buy date</span><b>${row.buy_date}</b></div>
+    <div class="detailrow"><span>Days held</span><b>${row.holding_days}</b></div>
+    <div class="detailrow"><span>Buy commission (brokerage+tax)</span><b>${money(row.buy_commission)}</b></div>
+    <div class="detailrow"><span>Total invested</span><b>${money(row.invested)}</b></div>
+    <div class="detailrow"><span>Live price (${row.quote_asof || 'n/a'})</span><b>${row.live_price !== null ? 'Rs. '+n2(row.live_price) : row.quote_status}</b></div>
+    <div class="detailrow"><span>Current value</span><b>${row.current_value !== null ? money(row.current_value) : 'N/A'}</b></div>
+    <div class="detailrow"><span>Unrealized P/L</span><b class="${cls(row.unrealized_pl)}">${row.unrealized_pl !== null ? smoney(row.unrealized_pl) : 'N/A'}</b></div>
+    <div class="detailrow"><span>Unrealized return %</span><b class="${cls(row.unrealized_pct)}">${row.unrealized_pct !== null ? spct(row.unrealized_pct) : 'N/A'}</b></div>
+    ${row.notes ? `<div class="detailrow"><span>Notes</span><b>${esc(row.notes)}</b></div>` : ''}
+    ${psxIndicatorsHtml(row.indicators)}
+    <div class="modal-actions" style="margin-top:10px"><button class="secondary" style="background:#3f1414;color:#fca5a5" onclick="psxDeleteFromDetails('${row.id}')">Delete this entry</button></div>`;
+  document.getElementById('psxDetailsModal').classList.add('show');
+}
+function psxSignalDetailHtml(ind) {
+  const f = ind.signal_factors || [], ag = ind.agreement, bt = ind.backtest, fu = ind.fundamentals, nm = ind.news_matches || [];
+  const sg = v => (v > 0 ? '+' : '') + Number(v).toFixed(1);
+  let h = `<div class="note" style="margin-top:8px"><b>Signal: ${esc(ind.signal)}</b>${ind.score !== undefined ? ' (score ' + sg(ind.score) + ')' : ''}` +
+    (ag ? `<br>${ag.bull} bullish · ${ag.bear} bearish · ${ag.neutral} neutral — out of ${ag.total} factors` : '') +
+    `<br><span style="font-size:11px">History used: ${esc(ind.history_source || '')} (${ind.history_days} trading days)</span></div>`;
+  if (f.length) {
+    h += '<div class="tblwrap"><table style="min-width:0"><tr><th>Factor</th><th style="text-align:left">Reading</th><th>Score</th></tr>' +
+      f.map(x => `<tr><td>${esc(x.name)}</td><td style="text-align:left;white-space:normal">${esc(x.text)}</td><td class="${cls(x.score)}">${sg(x.score)}</td></tr>`).join('') + '</table></div>';
+  }
+  if (fu) {
+    h += '<h4 style="margin:12px 0 4px">📑 Company results (from PSX)</h4>';
+    if (fu.eps_annual) h += `<div class="detailrow"><span>Annual EPS (${esc((fu.annual_years || []).slice(0, 3).join(' / '))})</span><b>${fu.eps_annual.slice(0, 3).join(' / ')}${fu.eps_growth_annual != null ? ' (' + spct(fu.eps_growth_annual) + ')' : ''}</b></div>`;
+    if (fu.eps_q) h += `<div class="detailrow"><span>${esc(fu.q_label || 'Latest quarter')} EPS vs last quarters</span><b>${fu.eps_q.slice(0, 4).join(' / ')}${fu.eps_q_yoy_growth != null ? ' (YoY ' + spct(fu.eps_q_yoy_growth) + ')' : ''}</b></div>`;
+    if (fu.pe_ttm != null) h += `<div class="detailrow"><span>P/E ratio (TTM)</span><b>${fu.pe_ttm}</b></div>`;
+  }
+  h += '<h4 style="margin:12px 0 4px">📰 Company news (last 5 days)</h4>' + (nm.length
+    ? nm.map(n => `<div class="detailrow" style="gap:8px"><span style="white-space:normal">${n.sentiment > 0 ? '🟢' : n.sentiment < 0 ? '🔴' : '⚪'} ${esc(n.headline)} <span class="na">(${esc(n.source)})</span></span></div>`).join('')
+    : '<p class="na">No company-specific headlines in the last 5 days.</p>');
+  if (bt) {
+    const line = (lbl, x, up) => x.n ? `${lbl}: <b>${x.n}</b> signals — ${up ? 'price was higher' : 'price was lower'} ${bt.horizon_days} days later <b>${x.hit_pct.toFixed(0)}%</b> of the time (avg move ${spct(x.avg_move_pct)})` : `${lbl}: no signals in the tested period`;
+    h += `<div class="note" style="margin-top:10px"><b>🧪 Backtest on this stock's own history</b> (technical rules only, ~${Math.round(bt.bars_tested / 250 * 10) / 10} years)<br>${line('BUY / STRONG BUY', bt.buy, true)}<br>${line('SELL / STRONG SELL', bt.sell, false)}<br>For comparison, a random ${bt.horizon_days}-day window was up <b>${bt.base_up_pct.toFixed(0)}%</b> of the time. If a signal's hit-rate is not clearly above that baseline, treat it as weak.</div>`;
+  }
+  h += '<p class="na" style="font-size:11px;margin-top:8px">No indicator set is 100% accurate. This is a rules-based aid, not investment advice — confirm with your own research.</p>';
+  return h;
+}
+function psxIndicatorsHtml(ind) {
+  if (!ind) return '<p class="na" style="margin-top:10px">Technical indicators unavailable (no live price this refresh).</p>';
+  const row = (l, v) => `<div class="detailrow"><span>${l}</span><b>${v}</b></div>`;
+  const fmt = v => v === null || v === undefined ? '<span class="na">building history…</span>' : n2(v);
+  let html = `<h4 style="margin:14px 0 6px">📐 Technical Indicators <span style="font-size:11px;color:#94a3b8;font-weight:400">(informational only, not advice)</span></h4>`;
+  html += row('Day High / Low', `${fmt(ind.day_high)} / ${fmt(ind.day_low)}`);
+  html += row('Day Open · Volume', `${fmt(ind.day_open)} · ${ind.volume !== null ? Number(ind.volume).toLocaleString() : 'N/A'}`);
+  html += row('SMA 20 / 50', `${fmt(ind.sma20)} / ${fmt(ind.sma50)}`);
+  html += row('SMA 100 / 200', `${fmt(ind.sma100)} / ${fmt(ind.sma200)}`);
+  html += row('RSI (14)', ind.rsi14 === null ? '<span class="na">building history…</span>' : `${ind.rsi14.toFixed(1)} ${ind.rsi14<30?'(oversold)':ind.rsi14>70?'(overbought)':''}`);
+  html += row('Bollinger Bands', ind.bb_upper !== null ? `${fmt(ind.bb_lower)} — ${fmt(ind.bb_mid)} — ${fmt(ind.bb_upper)}` : '<span class="na">building history…</span>');
+  html += row('Volatility (20d, daily σ)', ind.volatility_pct === null || ind.volatility_pct === undefined ? '<span class="na">building history…</span>' : ind.volatility_pct.toFixed(2) + '%');
+  html += row('Volume trend', ind.volume_trend && ind.volume_trend !== 'INSUFFICIENT HISTORY' ? `${ind.volume_trend} (${ind.volume_ratio.toFixed(2)}× 20-day avg)` : '<span class="na">building history…</span>');
+  html += row('Swing structure (HH/HL/LH/LL)', ind.swing_structure && ind.swing_structure !== 'INSUFFICIENT HISTORY' ? esc(ind.swing_structure) : '<span class="na">building history…</span>');
+  if (ind.take_profit) html += row('Take-profit level (next resistance)', `${ind.take_profit.label}: ${n2(ind.take_profit.level)}`);
+  if (ind.pivots) {
+    html += row('Resistance 3 / 2 / 1', `${fmt(ind.pivots.r3)} / ${fmt(ind.pivots.r2)} / ${fmt(ind.pivots.r1)}`);
+    html += row('Pivot', fmt(ind.pivots.pivot));
+    html += row('Support 1 / 2 / 3', `${fmt(ind.pivots.s1)} / ${fmt(ind.pivots.s2)} / ${fmt(ind.pivots.s3)}`);
+  } else {
+    html += '<p class="na">Support/Resistance needs at least one full prior trading day recorded — check back tomorrow.</p>';
+  }
+  html += psxSignalDetailHtml(ind);
+  return html;
+}
+async function psxDeleteFromDetails(lot_id) {
+  if (!confirm('Delete this holding entry? This cannot be undone.')) return;
+  if (await api('/psx/update', { method: 'POST', body: { lot_id, action: 'delete' } })) {
+    closeModal('psxDetailsModal'); psxLoad();
+  }
+}
+
+function psxOpenEdit(row) {
+  document.getElementById('pe_lot_id').value = row.id;
+  document.getElementById('pe_qty').value = row.quantity;
+  document.getElementById('pe_price').value = row.buy_price;
+  document.getElementById('pe_date').value = row.buy_date;
+  document.getElementById('pe_notes').value = row.notes || '';
+  document.getElementById('psxEditModal').classList.add('show');
+}
+async function psxSaveEdit() {
+  const lot_id = document.getElementById('pe_lot_id').value;
+  const body = { lot_id, quantity: Number(document.getElementById('pe_qty').value),
+    buy_price: Number(document.getElementById('pe_price').value),
+    buy_date: document.getElementById('pe_date').value, notes: document.getElementById('pe_notes').value };
+  if (await api('/psx/update', { method: 'POST', body })) { closeModal('psxEditModal'); psxLoad(); }
+}
+async function psxDeleteFromEdit() {
+  const lot_id = document.getElementById('pe_lot_id').value;
+  if (!confirm('Delete this holding entry? This cannot be undone.')) return;
+  if (await api('/psx/update', { method: 'POST', body: { lot_id, action: 'delete' } })) { closeModal('psxEditModal'); psxLoad(); }
+}
+
+let psxImportRows = [];
+async function psxUploadCsv(file) {
+  if (!file) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  document.getElementById('psxImportStatus').textContent = 'Reading file…';
+  document.getElementById('psxImportTable').innerHTML = '';
+  document.getElementById('psxImportModal').classList.add('show');
+  let resp, data;
+  try {
+    const token = await getFreshToken();
+    resp = await fetch(API + '/psx/parse-csv', {
+      method: 'POST',
+      headers: token ? { 'Authorization': 'Bearer ' + token } : {},
+      body: fd
+    });
+    data = await resp.json();
+  } catch (e) {
+    document.getElementById('psxImportStatus').innerHTML = '<span style="color:#f87171">Upload failed: ' + esc(e.message) + '</span>';
+    return;
+  }
+  if (!resp.ok) {
+    let msg = data.error || 'Could not read file';
+    if (data.debug) msg += ' [debug: delim=' + data.debug.delimiter + ', header="' + (data.debug.header_line||'').slice(0,120) + '"]';
+    document.getElementById('psxImportStatus').innerHTML = '<span style="color:#f87171">' + esc(msg) + '</span>';
+    return;
+  }
+  psxImportRows = data.rows.map((r, i) => ({ ...r, id: i, include: true }));
+  let statusMsg = `Found ${data.count} trade row(s). Review, edit, or untick any row, then Import Selected.`;
+  if (data.used_fallback_order) statusMsg += ' (Column headers weren\'t recognized, so columns were read by position: Ticker, Date, Buy Qty, Sell Qty, Rate, Commission, Other Charges - double-check the values below are in the right place.)';
+  if (data.warnings && data.warnings.length) statusMsg += ' Skipped rows: ' + data.warnings.join('; ');
+  document.getElementById('psxImportStatus').textContent = statusMsg;
+  psxRenderImportTable();
+  document.getElementById('psxFileInput').value = '';
+}
+function psxRenderImportTable() {
+  const tbl = document.getElementById('psxImportTable');
+  tbl.innerHTML = '<tr><th></th><th>Ticker</th><th>Date</th><th>Buy Qty</th><th>Sell Qty</th><th>Rate</th><th>Commission</th><th>Other Chgs</th></tr>' +
+    psxImportRows.map(r => `<tr>
+      <td><input type="checkbox" ${r.include ? 'checked' : ''} onchange="psxImportRows[${r.id}].include=this.checked"></td>
+      <td><input style="width:70px" value="${esc(r.ticker)}" onchange="psxImportRows[${r.id}].ticker=this.value.toUpperCase()"></td>
+      <td><input type="date" style="width:120px" value="${esc(r.trade_date)}" onchange="psxImportRows[${r.id}].trade_date=this.value"></td>
+      <td><input type="number" style="width:70px" value="${r.buy_qty}" onchange="psxImportRows[${r.id}].buy_qty=Number(this.value)"></td>
+      <td><input type="number" style="width:70px" value="${r.sell_qty}" onchange="psxImportRows[${r.id}].sell_qty=Number(this.value)"></td>
+      <td><input type="number" step="0.01" style="width:70px" value="${r.rate}" onchange="psxImportRows[${r.id}].rate=Number(this.value)"></td>
+      <td><input type="number" step="0.01" style="width:70px" value="${r.commission}" onchange="psxImportRows[${r.id}].commission=Number(this.value)"></td>
+      <td><input type="number" step="0.01" style="width:70px" value="${r.other_charges}" onchange="psxImportRows[${r.id}].other_charges=Number(this.value)"></td>
+    </tr>`).join('');
+}
+async function psxConfirmImport() {
+  const selected = psxImportRows.filter(r => r.include).map(({ id, include, ...rest }) => rest);
+  if (!selected.length) return alert('No rows selected.');
+  const btn = document.getElementById('psxImportConfirmBtn');
+  btn.disabled = true; btn.textContent = 'Importing…';
+  const r = await api('/psx/import', { method: 'POST', body: { rows: selected } });
+  btn.disabled = false; btn.textContent = 'Import Selected';
+  if (!r) return;
+  let msg = `Imported: ${r.new_active_lots} new holding(s), ${r.realized_trades} realized trade(s), net realized P/L ${smoney(r.total_realized_pl)}.`;
+  if (r.warnings && r.warnings.length) msg += '\n\n' + r.warnings.join('\n');
+  alert(msg);
+  closeModal('psxImportModal');
+  psxLoad();
+}
+
+async function psxOpenSettings() {
+  const s = await api('/psx/settings');
+  psxSettings = s;
+  document.getElementById('ps_govt').value = s.govt_tax_pct;
+  document.getElementById('ps_cgt').value = s.cgt_pct;
+  document.getElementById('ps_slab1max').value = s.slab1_max;
+  document.getElementById('ps_slab1paisa').value = s.slab1_paisa;
+  document.getElementById('ps_slab2pct').value = s.slab2_pct;
+  document.getElementById('psxSettingsModal').classList.add('show');
+}
+async function psxSaveSettings() {
+  const body = {
+    govt_tax_pct: Number(document.getElementById('ps_govt').value),
+    cgt_pct: Number(document.getElementById('ps_cgt').value),
+    slab1_max: Number(document.getElementById('ps_slab1max').value),
+    slab1_paisa: Number(document.getElementById('ps_slab1paisa').value),
+    slab2_pct: Number(document.getElementById('ps_slab2pct').value),
+  };
+  const r = await api('/psx/settings', { method: 'POST', body });
+  if (!r) return;
+  psxSettings = r;
+  closeModal('psxSettingsModal');
+}
+
+async function psxLoadReports() {
+  const data = await api('/psx/reports');
+  if (!data) return;
+  psxReportsData = data;
+  psxRenderReports();
+}
+function psxRenderReports() {
+  if (!psxReportsData) return;
+  const checked = [...document.querySelectorAll('#psxReportChecks input:checked')].map(c => c.value);
+  const out = document.getElementById('psxReportOut');
+  if (!checked.length) { out.innerHTML = '<p class="na">Select at least one period above.</p>'; return; }
+  const LABELS = { daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly', yearly: 'Yearly', fiscal_year: 'Fiscal Year', since_inception: 'Since Inception' };
+  let html = '';
+  for (const key of checked) {
+    const rows = psxReportsData[key] || [];
+    html += `<h4 style="margin:14px 0 6px">${LABELS[key]}</h4>`;
+    if (!rows.length) { html += '<p class="na">No sold trades in this range yet.</p>'; continue; }
+    html += '<div class="tblwrap"><table><tr><th>Period</th><th>Trades</th><th>Realized P/L</th></tr>' +
+      rows.map(r => `<tr><td>${esc(r.period)}</td><td>${r.trades}</td><td class="${cls(r.realized_pl)}"><b>${smoney(r.realized_pl)}</b></td></tr>`).join('') +
+      '</table></div>';
+  }
+  out.innerHTML = html;
+
+  // Chart: monthly (or first selected) bar of realized P/L
+  const chartKey = checked.includes('monthly') ? 'monthly' : checked[0];
+  const rows = psxReportsData[chartKey] || [];
+  let box = document.getElementById('psxReportChartBox');
+  if (!box) {
+    box = document.createElement('div'); box.className = 'hbox'; box.style.marginTop = '14px'; box.id = 'psxReportChartBox';
+    box.innerHTML = '<canvas id="psxReportChart"></canvas>';
+    out.parentElement.insertBefore(box, out.nextSibling);
+  }
+  if (psxReportChart) psxReportChart.destroy();
+  if (rows.length) {
+    psxReportChart = new Chart(document.getElementById('psxReportChart'), {
+      type: 'bar',
+      data: { labels: rows.map(r => r.period), datasets: [{ label: 'Realized P/L (Rs.)', data: rows.map(r => r.realized_pl), backgroundColor: rows.map(r => r.realized_pl >= 0 ? '#4ade80' : '#f87171') }] },
+      options: { maintainAspectRatio: false, plugins: { legend: { display: false }, title: { display: true, text: 'Realized P/L — ' + LABELS[chartKey], color: chartColors().text, font: { size: 11 } } }, scales: { x: axis(), y: axis() } }
+    });
+  }
+}
+
+/* ---------------- Boot ---------------- */
+async function loadTickerStrip() {
+  const data = await api('/tickers');
+  if (!data) return;
+  const el = document.getElementById('tickerStrip');
+  const fmtPrice = (v, dec=2) => v === null || v === undefined ? 'N/A' : Number(v).toLocaleString(undefined,{maximumFractionDigits:dec});
+  const pctSpan = (pct) => {
+    const c = pct === null || pct === undefined ? 'na' : (pct >= 0 ? 'pos' : 'neg');
+    const arrow = pct === null || pct === undefined ? '' : (pct >= 0 ? '▲' : '▼');
+    return `<span class="${c}">${arrow}${pct!==null&&pct!==undefined?Math.abs(pct).toFixed(2)+'%':'N/A'}</span>`;
+  };
+  const shortDate = (d) => d ? new Date(d + 'T00:00:00Z').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', timeZone: 'UTC' }) : '';
+  const card = (label, t, dec) => {
+    const ok = t.status === 'OK' || t.status === undefined;
+    const price = t.price !== undefined ? t.price : t.current;
+    if (!ok || price === null || price === undefined) return `<div class="tcard"><div class="tcard-head">${esc(label)}</div><div class="na">Data unavailable</div></div>`;
+    return `
+    <div class="tcard">
+      <div class="tcard-head"><span>${esc(label)}</span>${pctSpan(t.day_pct)}</div>
+      <div class="tcard-price">${fmtPrice(price, dec)}</div>
+      <div class="tcard-sub">${t.as_of_date ? 'Close (' + shortDate(t.as_of_date) + ') · ' : ''}Prev close <b>${fmtPrice(t.prev_close, dec)}</b>${t.prev_close_date ? ' (' + shortDate(t.prev_close_date) + ')' : ''}</div>
+      ${t.day_high != null ? `<div class="tcard-sub">Day H/L <b>${fmtPrice(t.day_high, dec)}</b> / <b>${fmtPrice(t.day_low, dec)}</b></div>` : ''}
+      <div class="tcard-rows">
+        <span>Week ${pctSpan(t.week_pct)}</span><span>Month ${pctSpan(t.month_pct)}</span>
+        <span>FY ${pctSpan(t.fy_pct)}</span><span>Year ${pctSpan(t.year_pct)}</span>
+      </div>
+    </div>`;
+  };
+  const globalHtml = data.global.map(g => card(g.label, g, g.label === 'USD/PKR' ? 2 : 1)).join('');
+  const psxHtml = data.psx.map(p => card(p.label, p, 2)).join('');
+  el.innerHTML = globalHtml + psxHtml;
+}
+
+(async function boot() {
+  if (typeof firebase !== 'undefined' && firebase.auth) {
+    firebase.auth().onAuthStateChanged((user) => {
+      if (!user) {
+        location.href = '/login.html?next=' + encodeURIComponent(location.pathname);
+      }
+    });
+  }
+  try { const t = localStorage.getItem('theme') || 'dark'; document.getElementById('themeBtn').textContent = t === 'light' ? '☀️ Light' : '🌙 Dark'; } catch (e) {}
+  autoSecs = 0; psxAutoSecs = 0;
+  try { const s = localStorage.getItem('autoSecs'); if (s !== null) autoSecs = Number(s); } catch (e) {}
+  try { const s = localStorage.getItem('psxAutoSecs'); if (s !== null) psxAutoSecs = Number(s); } catch (e) {}
+  fillAuto('autoSel', autoSecs); fillAuto('psxAutoSel', psxAutoSecs);
+  psxResetCountdown();
+  let initialApp = 'funds';
+  try { if (localStorage.getItem('activeApp') === 'psx') initialApp = 'psx'; } catch (e) {}
+  loadNews(false);
+  loadTickerStrip();
+  resetCountdown();
+  // Only draw charts for the tab that's actually visible at load time - the other tab's
+  // charts get drawn fresh by switchApp() the moment the user opens it (see switchApp above).
+  if (initialApp === 'psx') { switchApp('psx'); }
+  else { await loadDashboard(false); loadHistory(); }
+})();
+</script>
+</body>
+</html>

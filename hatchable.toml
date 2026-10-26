@@ -1,0 +1,10 @@
+name = "fund-investor-portal"
+
+[auth]
+enabled = true
+providers = ["email"]
+signup = "open"
+
+[ai]
+required = true
+description = "Extracts trades (ticker, buy/sell qty, price, commission, tax) from uploaded brokerage PDF statements."

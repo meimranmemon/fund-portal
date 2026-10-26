@@ -1,0 +1,1 @@
+ALTER TABLE fund_daily_summary ADD COLUMN IF NOT EXISTS source TEXT DEFAULT 'live';

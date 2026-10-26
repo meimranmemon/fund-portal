@@ -1,0 +1,9 @@
+node_modules
+npm-debug.log
+.env
+.git
+.github
+fund-portal-code
+fund-portal-code.zip
+index.html
+*.log
