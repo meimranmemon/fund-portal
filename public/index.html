@@ -452,15 +452,15 @@ tr.totals td{font-weight:700;border-top:2px solid var(--border2)}
 
 <script>
 function getApiBase() {
+  // localhost → always same-origin
   if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
     return '/api';
   }
-  let base = (window.CLOUD_API_URL || '/api').trim();
-  base = base.replace(/\/+$/, '');
-  if (!base.endsWith('/api')) {
-    base += '/api';
-  }
-  return base;
+  // Vercel or same-origin deployment → CLOUD_API_URL is "" → use /api
+  const cloud = (window.CLOUD_API_URL || '').trim().replace(/\/+$/, '');
+  if (!cloud) return '/api';
+  // External backend (Firebase Hosting pointing to Vercel URL)
+  return cloud.endsWith('/api') ? cloud : cloud + '/api';
 }
 const API = getApiBase();
 const PALETTE = ['#7c3aed','#4ade80','#f59e0b','#38bdf8','#f472b6','#a78bfa','#34d399','#fb923c','#60a5fa','#facc15','#e879f9','#2dd4bf'];

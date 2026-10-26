@@ -1,4 +1,7 @@
-window.CLOUD_API_URL = "https://wellness-prompt-agree-senator.trycloudflare.com/api";
+// CLOUD_API_URL: Set to your Vercel backend URL after deployment
+// e.g. "https://fund-portal.vercel.app/api"
+// Leave empty ("") when frontend and backend are on the same domain (Vercel)
+window.CLOUD_API_URL = "";
 // ============================================================================
 // FIREBASE WEB CONFIGURATION - Fund Investor Portal
 // Project: fund-investor-portal (toimran.memon@gmail.com)

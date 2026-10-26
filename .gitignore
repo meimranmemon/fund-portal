@@ -8,4 +8,5 @@ fund-portal-code.zip
 cloudflared.exe
 *.txt
 render-env.txt
+.vercel/
 

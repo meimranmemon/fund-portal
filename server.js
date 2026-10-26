@@ -4,8 +4,9 @@ import dotenv from "dotenv";
 import multer from "multer";
 import fs from "fs";
 import path from "path";
-import { fileURLToPath, pathToFileURL } from "url";
+import { fileURLToPath } from "url";
 import admin from "firebase-admin";
+import { routes } from "./routes.js";
 
 dotenv.config();
 
@@ -15,7 +16,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const port = process.env.PORT || 8080;
 
-// Initialize Firebase Admin if credentials are provided
+// ── Firebase Admin ─────────────────────────────────────────────────────────
 let firebaseInitialized = false;
 const saSource =
   process.env.FIREBASE_SERVICE_ACCOUNT ||
@@ -27,27 +28,26 @@ if (saSource) {
   try {
     let serviceAccount;
     const raw = saSource.trim();
-    if (raw.startsWith("{")) {
-      serviceAccount = JSON.parse(raw);
-    } else {
-      serviceAccount = JSON.parse(fs.readFileSync(raw, "utf8"));
+    serviceAccount = raw.startsWith("{")
+      ? JSON.parse(raw)
+      : JSON.parse(fs.readFileSync(raw, "utf8"));
+
+    if (!admin.apps.length) {
+      admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
     }
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-    });
     firebaseInitialized = true;
-    console.log("Firebase Admin successfully initialized.");
+    console.log("✔ Firebase Admin initialized.");
   } catch (err) {
-    console.warn("Warning: Could not initialize Firebase Admin:", err.message);
+    console.warn("⚠ Firebase Admin init warning:", err.message);
   }
 } else {
-  console.log("Note: FIREBASE_SERVICE_ACCOUNT or serviceAccountKey.json not found yet.");
+  console.log("ℹ FIREBASE_SERVICE_ACCOUNT not set — auth disabled.");
 }
 
-// Multer in-memory storage for file uploads (CSV, PDF statements)
+// ── Middleware ──────────────────────────────────────────────────────────────
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 25 * 1024 * 1024 }, // 25 MB max
+  limits: { fileSize: 25 * 1024 * 1024 },
 });
 
 app.use(cors({
@@ -56,21 +56,11 @@ app.use(cors({
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "x-cron-secret"],
 }));
+
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
-// Request logging middleware
-app.use((req, res, next) => {
-  const start = Date.now();
-  const { method, originalUrl } = req;
-  res.on("finish", () => {
-    const ms = Date.now() - start;
-    console.log(`[${new Date().toISOString().slice(11, 19)}] ${method} ${originalUrl} -> ${res.statusCode} (${ms}ms)`);
-  });
-  next();
-});
-
-// Upload middleware adapter to format req.files as expected by existing code
+// Multer adapter — normalise req.files for existing route handlers
 app.use(upload.any(), (req, res, next) => {
   if (req.files && Array.isArray(req.files)) {
     req.files = req.files.map((f) => ({
@@ -83,119 +73,95 @@ app.use(upload.any(), (req, res, next) => {
   next();
 });
 
-// Health check endpoint
-app.get("/health", (req, res) => {
-  res.json({ status: "ok", time: new Date().toISOString() });
+// Request logger
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on("finish", () => {
+    const ms = Date.now() - start;
+    console.log(`[${new Date().toISOString().slice(11, 19)}] ${req.method} ${req.originalUrl} → ${res.statusCode} (${ms}ms)`);
+  });
+  next();
 });
 
-// Auto-mount all routes in api/
-async function registerRoutes(dir, baseRoute = "/api") {
-  const entries = fs.readdirSync(dir, { withFileTypes: true });
+// ── Health ──────────────────────────────────────────────────────────────────
+app.get("/health", (_req, res) =>
+  res.json({ status: "ok", time: new Date().toISOString(), vercel: !!process.env.VERCEL })
+);
 
-  for (const entry of entries) {
-    const fullPath = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      await registerRoutes(fullPath, `${baseRoute}/${entry.name}`);
-    } else if (entry.isFile() && entry.name.endsWith(".js")) {
-      const routeName = entry.name.replace(/\.js$/, "");
-      const routePath = `${baseRoute}/${routeName}`;
-      const fileUrl = pathToFileURL(fullPath).href;
+// ── Auth helper ─────────────────────────────────────────────────────────────
+async function checkAuth(req, res, access) {
+  if (access === "scheduler") {
+    const cronSecret = process.env.CRON_SECRET;
+    if (!cronSecret || req.headers["x-cron-secret"] !== cronSecret) {
+      res.status(401).json({ error: "Unauthorized: invalid x-cron-secret" });
+      return false;
+    }
+    return true;
+  }
 
-      try {
-        const mod = await import(fileUrl);
-        const handler = mod.default;
-        const access = mod.access;
-        const methods = mod.methods;
-
-        if (typeof handler !== "function") {
-          console.warn(`Skipping ${routePath}: no default export function`);
-          continue;
-        }
-
-        app.all(routePath, async (req, res, next) => {
-          // Check HTTP method if specified by the module
-          if (methods && Array.isArray(methods) && !methods.includes(req.method)) {
-            return res.status(405).json({
-              error: `Method ${req.method} not allowed. Supported: ${methods.join(", ")}`,
-            });
-          }
-
-          // Scheduler auth check (for hourly-refresh)
-          if (access === "scheduler") {
-            const cronSecret = process.env.CRON_SECRET;
-            const incomingSecret = req.headers["x-cron-secret"];
-            if (!cronSecret || incomingSecret !== cronSecret) {
-              return res.status(401).json({ error: "Unauthorized (invalid or missing x-cron-secret)" });
-            }
-          }
-
-          // User auth check
-          if (access === "user") {
-            const authHeader = req.headers.authorization;
-            if (!authHeader || !authHeader.startsWith("Bearer ")) {
-              return res.status(401).json({ error: "Unauthorized: Missing Bearer token" });
-            }
-            const token = authHeader.slice(7).trim();
-
-            if (!firebaseInitialized) {
-              return res.status(401).json({
-                error: "Unauthorized: Firebase Admin is not configured on server",
-              });
-            }
-
-            try {
-              const decoded = await admin.auth().verifyIdToken(token);
-              req.user = {
-                id: decoded.uid,
-                email: decoded.email || null,
-              };
-            } catch (err) {
-              return res.status(401).json({ error: `Unauthorized: ${err.message}` });
-            }
-          }
-
-          // Execute route handler
-          try {
-            await handler(req, res);
-          } catch (err) {
-            console.error(`Error in ${routePath}:`, err);
-            if (!res.headersSent) {
-              res.status(500).json({ error: err.message || "Internal server error" });
-            }
-          }
-        });
-
-        console.log(`Mounted [${methods ? methods.join(",") : "ALL"}] ${routePath} (access: ${access || "public"})`);
-      } catch (err) {
-        console.error(`Failed to load route module ${fullPath}:`, err);
-        throw err;
-      }
+  if (access === "user") {
+    const authHeader = req.headers.authorization;
+    if (!authHeader?.startsWith("Bearer ")) {
+      res.status(401).json({ error: "Unauthorized: Missing Bearer token" });
+      return false;
+    }
+    if (!firebaseInitialized) {
+      res.status(401).json({ error: "Unauthorized: Firebase Admin not configured on server" });
+      return false;
+    }
+    try {
+      const decoded = await admin.auth().verifyIdToken(authHeader.slice(7).trim());
+      req.user = { id: decoded.uid, email: decoded.email || null };
+    } catch (err) {
+      res.status(401).json({ error: `Unauthorized: ${err.message}` });
+      return false;
     }
   }
+
+  return true;
 }
 
-const apiDir = path.join(__dirname, "api");
-await registerRoutes(apiDir);
+// ── Register all API routes (static registry — bundler-safe) ───────────────
+for (const { path: routePath, mod } of routes) {
+  const handler = mod.default;
+  const access  = mod.access;
+  const methods = mod.methods;
 
-// Static frontend serving
-app.use(express.static(path.join(__dirname, "public")));
-app.get("/login", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "login.html"));
-});
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
-});
-
-// Fallback for SPA routing if needed
-app.get("*", (req, res, next) => {
-  if (req.path.startsWith("/api/")) {
-    return res.status(404).json({ error: "Route not found" });
+  if (typeof handler !== "function") {
+    console.warn(`Skipping ${routePath}: no default export`);
+    continue;
   }
+
+  app.all(routePath, async (req, res) => {
+    if (methods && !methods.includes(req.method)) {
+      return res.status(405).json({ error: `Method ${req.method} not allowed` });
+    }
+    if (!(await checkAuth(req, res, access))) return;
+    try {
+      await handler(req, res);
+    } catch (err) {
+      console.error(`Error in ${routePath}:`, err);
+      if (!res.headersSent)
+        res.status(500).json({ error: err.message || "Internal server error" });
+    }
+  });
+
+  console.log(`Mounted [${methods ? methods.join(",") : "ALL"}] ${routePath} (access: ${access || "public"})`);
+}
+
+// ── Static frontend (HTML/CSS/JS) ───────────────────────────────────────────
+app.use(express.static(path.join(__dirname, "public")));
+
+// SPA fallback
+app.get("*", (req, res) => {
+  if (req.path.startsWith("/api/"))
+    return res.status(404).json({ error: "API route not found" });
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-app.listen(port, () => {
-  console.log(`Server listening on port ${port}`);
-});
+// ── Local dev: listen (Vercel calls the exported app directly) ──────────────
+if (!process.env.VERCEL) {
+  app.listen(port, () => console.log(`Server listening on port ${port}`));
+}
 
 export default app;

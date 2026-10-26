@@ -1,0 +1,64 @@
+// Static routes registry (Vercel serverless + Localhost)
+import * as mod_0 from "./api/calc/history.js";
+import * as mod_1 from "./api/calc/hourly-refresh.js";
+import * as mod_2 from "./api/calc/run-mine.js";
+import * as mod_3 from "./api/funds/create.js";
+import * as mod_4 from "./api/funds/dashboard.js";
+import * as mod_5 from "./api/funds/delete.js";
+import * as mod_6 from "./api/funds/list.js";
+import * as mod_7 from "./api/funds/update.js";
+import * as mod_8 from "./api/holdings/add.js";
+import * as mod_9 from "./api/holdings/delete.js";
+import * as mod_10 from "./api/holdings/reorder.js";
+import * as mod_11 from "./api/holdings/update.js";
+import * as mod_12 from "./api/news/fetch.js";
+import * as mod_13 from "./api/news/list.js";
+import * as mod_14 from "./api/psx/add-history.js";
+import * as mod_15 from "./api/psx/buy.js";
+import * as mod_16 from "./api/psx/cash.js";
+import * as mod_17 from "./api/psx/dashboard.js";
+import * as mod_18 from "./api/psx/extract-statement.js";
+import * as mod_19 from "./api/psx/history.js";
+import * as mod_20 from "./api/psx/import-preview.js";
+import * as mod_21 from "./api/psx/import.js";
+import * as mod_22 from "./api/psx/parse-csv.js";
+import * as mod_23 from "./api/psx/reports.js";
+import * as mod_24 from "./api/psx/sell.js";
+import * as mod_25 from "./api/psx/settings.js";
+import * as mod_26 from "./api/psx/template.js";
+import * as mod_27 from "./api/psx/update.js";
+import * as mod_28 from "./api/sync/firebase.js";
+import * as mod_29 from "./api/tickers.js";
+
+export const routes = [
+  { path: "/api/calc/history", mod: mod_0 },
+  { path: "/api/calc/hourly-refresh", mod: mod_1 },
+  { path: "/api/calc/run-mine", mod: mod_2 },
+  { path: "/api/funds/create", mod: mod_3 },
+  { path: "/api/funds/dashboard", mod: mod_4 },
+  { path: "/api/funds/delete", mod: mod_5 },
+  { path: "/api/funds/list", mod: mod_6 },
+  { path: "/api/funds/update", mod: mod_7 },
+  { path: "/api/holdings/add", mod: mod_8 },
+  { path: "/api/holdings/delete", mod: mod_9 },
+  { path: "/api/holdings/reorder", mod: mod_10 },
+  { path: "/api/holdings/update", mod: mod_11 },
+  { path: "/api/news/fetch", mod: mod_12 },
+  { path: "/api/news/list", mod: mod_13 },
+  { path: "/api/psx/add-history", mod: mod_14 },
+  { path: "/api/psx/buy", mod: mod_15 },
+  { path: "/api/psx/cash", mod: mod_16 },
+  { path: "/api/psx/dashboard", mod: mod_17 },
+  { path: "/api/psx/extract-statement", mod: mod_18 },
+  { path: "/api/psx/history", mod: mod_19 },
+  { path: "/api/psx/import-preview", mod: mod_20 },
+  { path: "/api/psx/import", mod: mod_21 },
+  { path: "/api/psx/parse-csv", mod: mod_22 },
+  { path: "/api/psx/reports", mod: mod_23 },
+  { path: "/api/psx/sell", mod: mod_24 },
+  { path: "/api/psx/settings", mod: mod_25 },
+  { path: "/api/psx/template", mod: mod_26 },
+  { path: "/api/psx/update", mod: mod_27 },
+  { path: "/api/sync/firebase", mod: mod_28 },
+  { path: "/api/tickers", mod: mod_29 },
+];
