@@ -6,3 +6,6 @@ mingit/
 fund-portal-code/
 fund-portal-code.zip
 cloudflared.exe
+*.txt
+render-env.txt
+

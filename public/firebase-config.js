@@ -1,5 +1,6 @@
+window.CLOUD_API_URL = "https://wellness-prompt-agree-senator.trycloudflare.com/api";
 // ============================================================================
-// FIREBASE WEB CONFIGURATION — Fund Investor Portal
+// FIREBASE WEB CONFIGURATION - Fund Investor Portal
 // Project: fund-investor-portal (toimran.memon@gmail.com)
 // ============================================================================
 window.FIREBASE_CONFIG = {
@@ -22,8 +23,33 @@ if (typeof firebase !== "undefined" && !firebase.apps.length) {
 
 // Helper to get fresh ID token
 async function getFreshToken(forceRefresh = false) {
+  if (typeof firebase === "undefined" || !firebase.auth) return null;
+  
+  // 1. If currentUser is already known, grab token immediately
+  const cur = firebase.auth().currentUser;
+  if (cur) {
+    try {
+      const token = await cur.getIdToken(forceRefresh);
+      if (token) return token;
+    } catch (e) {
+      console.warn("Direct getIdToken error:", e);
+    }
+  }
+
+  // 2. Otherwise wait for initial onAuthStateChanged event (with safety timeout)
   return new Promise((resolve) => {
+    let done = false;
+    const timeout = setTimeout(() => {
+      if (!done) {
+        done = true;
+        resolve(null);
+      }
+    }, 6000);
+
     const unsubscribe = firebase.auth().onAuthStateChanged(async (user) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timeout);
       unsubscribe();
       if (!user) {
         resolve(null);

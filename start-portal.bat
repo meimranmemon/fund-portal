@@ -1,8 +1,5 @@
 @echo off
-title Investor Portal Server
-echo ====================================================
-echo  Fund Investor Portal Server is running!
-echo  Local URL: http://localhost:8080
-echo ====================================================
-node server.js
+title Fund Investor Portal (Local + Mobile Live)
+cd /d "%~dp0"
+node scripts/start-with-tunnel.js
 pause

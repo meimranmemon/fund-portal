@@ -4,7 +4,7 @@
 <!-- Firebase Web SDK (Compat) -->
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
-<script src="firebase-config.js"></script>
+<script src="firebase-config.js?v=2"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Investor Portal — Funds &amp; PSX</title>
@@ -219,7 +219,7 @@ tr.totals td{font-weight:700;border-top:2px solid var(--border2)}
   <div class="topbar">
     <button onclick="psxOpenBuy()">＋ Buy Shares</button>
     <button class="secondary" onclick="psxRefresh()" id="psxRefreshBtn">🔄 Refresh Live Prices</button>
-    <button class="secondary" onclick="window.location.href='/api/psx/template'">⬇️ Download Import Template (Excel/CSV)</button>
+    <button class="secondary" onclick="window.location.href=API + '/psx/template'">⬇️ Download Import Template (Excel/CSV)</button>
     <button class="secondary" onclick="document.getElementById('psxFileInput').click()">📤 Upload Filled Template</button>
     <input type="file" id="psxFileInput" accept=".csv,text/csv" style="display:none" onchange="psxUploadCsv(this.files[0])">
     <button class="secondary" onclick="psxOpenSettings()">⚙ Commission &amp; Tax Settings</button>
@@ -451,7 +451,18 @@ tr.totals td{font-weight:700;border-top:2px solid var(--border2)}
 </div>
 
 <script>
-const API = '/api';
+function getApiBase() {
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return '/api';
+  }
+  let base = (window.CLOUD_API_URL || '/api').trim();
+  base = base.replace(/\/+$/, '');
+  if (!base.endsWith('/api')) {
+    base += '/api';
+  }
+  return base;
+}
+const API = getApiBase();
 const PALETTE = ['#7c3aed','#4ade80','#f59e0b','#38bdf8','#f472b6','#a78bfa','#34d399','#fb923c','#60a5fa','#facc15','#e879f9','#2dd4bf'];
 let period = 'daily', autoSecs = 60, autoTimer = null, countdown = 0, busy = false, firstRender = true;
 let lastPrices = {};
@@ -499,23 +510,29 @@ async function api(path, opts = {}) {
     'Authorization': 'Bearer ' + token,
     ...(opts.headers || {})
   };
-  const resp = await fetch(API + path, {
-    method: opts.method || 'GET',
-    headers: headers,
-    body: opts.body ? JSON.stringify(opts.body) : undefined,
-    credentials: 'same-origin',
-  });
-  if (resp.status === 401) {
-    location.href = '/login.html?next=' + encodeURIComponent(location.pathname);
+  try {
+    const resp = await fetch(API + path, {
+      method: opts.method || 'GET',
+      headers: headers,
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+    });
+    if (resp.status === 401) {
+      location.href = '/login.html?next=' + encodeURIComponent(location.pathname);
+      return null;
+    }
+    let data = null;
+    try { data = await resp.json(); } catch (e) {}
+    if (!resp.ok) {
+      alert((data && data.error) || 'Request failed (' + resp.status + ')');
+      return null;
+    }
+    return data;
+  } catch (err) {
+    console.error('API call failed for ' + path + ':', err);
+    const sl = document.getElementById('statusLine');
+    if (sl) sl.innerHTML = '<span style="color:#f87171">⚠️ Backend disconnected / Network error: ' + esc(err.message) + '</span>';
     return null;
   }
-  let data = null;
-  try { data = await resp.json(); } catch (e) {}
-  if (!resp.ok) {
-    alert((data && data.error) || 'Request failed (' + resp.status + ')');
-    return null;
-  }
-  return data;
 }
 
 /* ---------------- App-level tab switching ---------------- */
@@ -1486,13 +1503,6 @@ async function loadTickerStrip() {
 }
 
 (async function boot() {
-  if (typeof firebase !== 'undefined' && firebase.auth) {
-    firebase.auth().onAuthStateChanged((user) => {
-      if (!user) {
-        location.href = '/login.html?next=' + encodeURIComponent(location.pathname);
-      }
-    });
-  }
   try { const t = localStorage.getItem('theme') || 'dark'; document.getElementById('themeBtn').textContent = t === 'light' ? '☀️ Light' : '🌙 Dark'; } catch (e) {}
   autoSecs = 0; psxAutoSecs = 0;
   try { const s = localStorage.getItem('autoSecs'); if (s !== null) autoSecs = Number(s); } catch (e) {}
@@ -1501,6 +1511,24 @@ async function loadTickerStrip() {
   psxResetCountdown();
   let initialApp = 'funds';
   try { if (localStorage.getItem('activeApp') === 'psx') initialApp = 'psx'; } catch (e) {}
+
+  // 1. Ensure user is logged in
+  const token = await getFreshToken();
+  if (!token) {
+    location.href = '/login.html?next=' + encodeURIComponent(location.pathname);
+    return;
+  }
+
+  // 2. Setup auth state change listener to redirect on sign out
+  if (typeof firebase !== 'undefined' && firebase.auth) {
+    firebase.auth().onAuthStateChanged((user) => {
+      if (!user) {
+        location.href = '/login.html?next=' + encodeURIComponent(location.pathname);
+      }
+    });
+  }
+
+  // 3. Authenticated: Load initial data
   loadNews(false);
   loadTickerStrip();
   resetCountdown();
